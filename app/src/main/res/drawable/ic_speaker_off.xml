@@ -1,0 +1,39 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Muted media-output speaker (shown at 0%): the outlined ic_speaker with a diagonal slash. Cone is
+         hollow with the same INNER 2.5 border (stroked at double width, clipped to its silhouette); the
+         sound waves are arc strokes of the same weight; the slash follows the ic_stream_media_off
+         convention. Dedicated to the picker so the ringer's shared ic_ring_megaphone_off is left alone.
+         Tinted at runtime; adapts to light/dark automatically. -->
+    <group>
+        <clip-path android:pathData="M3,9v6h4l5,5L12,4L7,9L3,9z" />
+        <path
+            android:fillColor="#00000000"
+            android:strokeColor="#FF000000"
+            android:strokeWidth="4"
+            android:strokeLineJoin="round"
+            android:strokeLineCap="round"
+            android:pathData="M3,9v6h4l5,5L12,4L7,9L3,9z" />
+    </group>
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:pathData="M14.3,8.5a4.3,4.3 0 0 1 0,7" />
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:pathData="M14,4.5a7.7,7.7 0 0 1 0,15" />
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:pathData="M4,4 L20,20" />
+</vector>

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!--
+      Night (dark) window theme. Its mere existence makes Theme.Volume a DayNight theme, so in system
+      dark mode the window resolves as isLightTheme=false. Extended/auto dark features decide to invert
+      an app based on it looking light-only in dark mode; a genuinely dark-aware theme removes that
+      trigger, so the OS stops force-inverting us and Compose/VolumeTheme controls the real colors
+      (including honouring an in-app "Light" choice while the device itself is dark).
+    -->
+    <style name="Theme.Volume" parent="android:Theme.Material.NoActionBar">
+        <item name="android:forceDarkAllowed">false</item>
+    </style>
+</resources>

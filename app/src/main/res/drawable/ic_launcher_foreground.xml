@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Volume++ launcher glyph: three vertical faders whose thumbs trace a "V".
+    The two outer thumbs are plus signs (the "++" in the name), the middle one a
+    round knob set low. All geometry stays inside the 66dp adaptive-icon safe
+    circle centered at (54,54).
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Fader tracks -->
+    <path
+        android:pathData="M 34,34 L 34,74"
+        android:strokeColor="#FFFFFF"
+        android:strokeAlpha="0.38"
+        android:strokeWidth="5"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M 54,34 L 54,74"
+        android:strokeColor="#FFFFFF"
+        android:strokeAlpha="0.38"
+        android:strokeWidth="5"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M 74,34 L 74,74"
+        android:strokeColor="#FFFFFF"
+        android:strokeAlpha="0.38"
+        android:strokeWidth="5"
+        android:strokeLineCap="round" />
+
+    <!-- Outer fader fills, level just below the plus thumbs -->
+    <path
+        android:pathData="M 34,60 L 34,72"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="9"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M 74,60 L 74,72"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="9"
+        android:strokeLineCap="round" />
+
+    <!-- Left plus thumb -->
+    <path
+        android:pathData="M 27.5,41 L 40.5,41"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="6"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M 34,34.5 L 34,47.5"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="6"
+        android:strokeLineCap="round" />
+
+    <!-- Right plus thumb -->
+    <path
+        android:pathData="M 67.5,41 L 80.5,41"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="6"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M 74,34.5 L 74,47.5"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="6"
+        android:strokeLineCap="round" />
+
+    <!-- Middle round thumb, set low (the point of the V) -->
+    <path
+        android:pathData="M 54,64 m -7,0 a 7,7 0 1,0 14,0 a 7,7 0 1,0 -14,0"
+        android:fillColor="#FFFFFF" />
+</vector>

@@ -1,0 +1,14 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "android",
+            "request": "launch",
+            "name": "Android: Launch & Debug",
+            "appSrcRoot": "${workspaceFolder}/app/src/main",
+            "apkFile": "${workspaceFolder}/app/build/outputs/apk/debug/app-debug.apk",
+            "adbPort": 5037,
+            "preLaunchTask": "Android: Build + Install"
+        }
+    ]
+}

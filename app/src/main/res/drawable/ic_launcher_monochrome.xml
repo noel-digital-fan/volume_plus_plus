@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Themed-icon (monochrome) layer. Same fader-V glyph as the foreground but with
+    heavier weights: launchers render this layer smaller and tint it, so thin
+    strokes wash out. Track translucency is kept — themed icons preserve alpha.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Fader tracks -->
+    <path
+        android:pathData="M 34,34 L 34,74"
+        android:strokeColor="#FFFFFF"
+        android:strokeAlpha="0.42"
+        android:strokeWidth="6"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M 54,34 L 54,74"
+        android:strokeColor="#FFFFFF"
+        android:strokeAlpha="0.42"
+        android:strokeWidth="6"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M 74,34 L 74,74"
+        android:strokeColor="#FFFFFF"
+        android:strokeAlpha="0.42"
+        android:strokeWidth="6"
+        android:strokeLineCap="round" />
+
+    <!-- Outer fader fills -->
+    <path
+        android:pathData="M 34,61 L 34,71"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="10"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M 74,61 L 74,71"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="10"
+        android:strokeLineCap="round" />
+
+    <!-- Left plus thumb -->
+    <path
+        android:pathData="M 27.5,41 L 40.5,41"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="7"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M 34,34.5 L 34,47.5"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="7"
+        android:strokeLineCap="round" />
+
+    <!-- Right plus thumb -->
+    <path
+        android:pathData="M 67.5,41 L 80.5,41"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="7"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M 74,34.5 L 74,47.5"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="7"
+        android:strokeLineCap="round" />
+
+    <!-- Middle round thumb -->
+    <path
+        android:pathData="M 54,64 m -8,0 a 8,8 0 1,0 16,0 a 8,8 0 1,0 -16,0"
+        android:fillColor="#FFFFFF" />
+</vector>

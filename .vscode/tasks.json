@@ -1,0 +1,50 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Android: Build + Install",
+            "type": "shell",
+            "command": "${workspaceFolder}/gradlew.bat",
+            "args": ["installDebug"],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared",
+                "clear": true
+            }
+        },
+        {
+            "label": "Android: Launch app",
+            "type": "shell",
+            "command": "C:/adb/adb.exe",
+            "args": [
+                "shell",
+                "am",
+                "start",
+                "-n",
+                "com.volume_plus_plus.app/.MainActivity"
+            ],
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "Android: Run",
+            "dependsOrder": "sequence",
+            "dependsOn": [
+                "Android: Build + Install",
+                "Android: Launch app"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": []
+        }
+    ]
+}

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- View-tag key used by the colour editor to mark a view with the EditableColor a tap on it
+         selects, for elements the generic hit-test can't tell apart (three-dot button, DONE pill
+         fill vs. label, the Android 15 output card). See OverlayController.tagColor. -->
+    <item name="tag_editable_color" type="id" />
+</resources>

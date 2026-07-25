@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Full-bleed indigo background for the adaptive icon. Diagonal gradient built
+    around the app's fallback Material seed #475D91 so the static icon matches
+    what dynamic color produces on most wallpapers.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path android:pathData="M0,0h108v108h-108z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="0"
+                android:startY="0"
+                android:endX="108"
+                android:endY="108"
+                android:type="linear">
+                <item
+                    android:color="#546BA5"
+                    android:offset="0.0" />
+                <item
+                    android:color="#475D91"
+                    android:offset="0.55" />
+                <item
+                    android:color="#374B7C"
+                    android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+</vector>

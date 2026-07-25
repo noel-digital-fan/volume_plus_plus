@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!--
+      Day (light) window theme. A matching dark variant lives in values-night/themes.xml, which makes
+      Theme.Volume a DayNight theme. That night variant is the important part: it tells the OS the app
+      natively supports dark mode, so aggressive "auto/extended dark" features (which force-invert apps
+      that look light-only) leave us alone and let Compose/VolumeTheme own the actual palette.
+
+      forceDarkAllowed=false additionally opts out of stock Force Dark. Some OEM "extended" dark modes
+      ignore this flag, which is why the DayNight (values-night) variant is needed as well.
+    -->
+    <style name="Theme.Volume" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:forceDarkAllowed">false</item>
+    </style>
+</resources>
