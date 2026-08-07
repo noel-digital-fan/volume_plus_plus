@@ -95,6 +95,10 @@ class VolumeSlider(
      * editor's drag / colour-tap layer can still handle it.
      */
     private val interactive: Boolean = true,
+    /** Scale factor for the faster part of the held-volume glide (1 = current default). */
+    private val motionFollowScale: Float = 1f,
+    /** Scale factor for the final settle once the glide is close to target (1 = current default). */
+    private val motionSettleScale: Float = 1f,
     private val onLevelChange: (Float) -> Unit,
     private val onTouchStart: () -> Unit,
     private val onTouchEnd: () -> Unit,
@@ -109,6 +113,36 @@ class VolumeSlider(
     /** 0 = idle (fully rounded fill) … 1 = dragging (fill's leading edge squared off). Animated. */
     private var dragProgress = 0f
     private var dragAnimator: ValueAnimator? = null
+
+    /** Animated display value for the slider fill/thumb. */
+    private var drawnLevel = 1f
+    private var targetLevel = 1f
+    private var levelGlideActive = false
+    private val levelGlideRunnable = object : Runnable {
+        override fun run() {
+            if (!levelGlideActive) return
+            val diff = targetLevel - drawnLevel
+            val distance = abs(diff)
+            if (distance <= 0.001f) {
+                drawnLevel = targetLevel
+                levelGlideActive = false
+                invalidate()
+                return
+            }
+            val gain = when {
+                distance > 0.35f -> 0.52f
+                distance > 0.20f -> 0.40f
+                distance > 0.08f -> 0.30f
+                else -> 0.20f
+            }
+            val scale = if (distance > 0.08f) motionFollowScale else motionSettleScale
+            drawnLevel += diff * gain * scale
+            if (abs(targetLevel - drawnLevel) <= 0.0005f) drawnLevel = targetLevel
+            invalidate()
+            if (drawnLevel != targetLevel) postOnAnimation(this) else levelGlideActive = false
+        }
+    }
+    private var draggingLevel = false
 
     /**
      * 0 = label fully shown … 1 = label fully faded (dragging). Kept separate from [dragProgress] so
@@ -126,10 +160,10 @@ class VolumeSlider(
         get() = if (isMutedLevel()) mutedIcon else icon
 
     /** Current fill fraction, 0f (empty) .. 1f (full). */
-    var level: Float = 1f
+    var level: Float
+        get() = drawnLevel
         set(value) {
-            field = value.coerceIn(0f, 1f)
-            invalidate()
+            setLevelInternal(value.coerceIn(0f, 1f), animate = !draggingLevel)
         }
 
     /**
@@ -667,6 +701,9 @@ class VolumeSlider(
     }
 
     private fun beginDrag() {
+        draggingLevel = true
+        levelGlideActive = false
+        removeCallbacks(levelGlideRunnable)
         dragging = true
         invalidate()
         onTouchStart()
@@ -678,6 +715,7 @@ class VolumeSlider(
     }
 
     private fun finishDrag() {
+        draggingLevel = false
         dragging = false
         invalidate()
         onTouchEnd()
@@ -738,8 +776,24 @@ class VolumeSlider(
         }
         val clamped = newLevel.coerceIn(0f, 1f)
         if (clamped != level) {
-            level = clamped
+            setLevelInternal(clamped, animate = false)
             onLevelChange(clamped)
+        }
+    }
+
+    private fun setLevelInternal(target: Float, animate: Boolean) {
+        targetLevel = target
+        if (target == drawnLevel && !levelGlideActive) return
+        if (!animate || !isAttachedToWindow || !(pillLabel || capsule)) {
+            levelGlideActive = false
+            removeCallbacks(levelGlideRunnable)
+            drawnLevel = target
+            invalidate()
+            return
+        }
+        if (!levelGlideActive) {
+            levelGlideActive = true
+            postOnAnimation(levelGlideRunnable)
         }
     }
 

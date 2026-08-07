@@ -264,10 +264,12 @@ class OverlayController(
     )
 
     /** Nudge the media stream in [direction] (+1 up, -1 down), then show/refresh the panel. */
-    fun adjustAndShow(direction: Int) {
+    fun adjustAndShow(direction: Int): Boolean {
         val dir = if (direction >= 0) AudioManager.ADJUST_RAISE else AudioManager.ADJUST_LOWER
+        val before = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
         // No FLAG_SHOW_UI: we suppress the system panel and render our own instead.
         runCatching { audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC, dir, 0) }
+        val changed = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC) != before
         val slider = mediaSlider
         if (root != null && !dismissing && slider != null) {
             // Already visible: reflect the new level on the existing slider and keep the panel alive,
@@ -287,6 +289,7 @@ class OverlayController(
         } else {
             show()
         }
+        return changed
     }
 
     fun show() {
@@ -1956,10 +1959,13 @@ class OverlayController(
             minNonZeroFillExtraDp = if (streamType == AudioManager.STREAM_MUSIC) 3f else 0f,
             fadeLabelWhileDragging = true,
         ) { level ->
-            slider.level = setStream(streamType, level)
+            setStream(streamType, level)
             afterChange?.invoke()
         }
-            .apply { level = streamLevel(streamType) }
+            .apply {
+                onDragStateChange = { dragging -> if (!dragging) level = streamLevel(streamType) }
+                level = streamLevel(streamType)
+            }
         if (streamType == AudioManager.STREAM_MUSIC) mediaSlider = slider
         return slider
     }
@@ -2179,8 +2185,11 @@ class OverlayController(
             pickerTrackColor = pickerColors.track ?: refTrack,
             pickerFillColor = pickerColors.fill ?: refFill,
             pickerContentColor = pickerColors.text ?: refContent,
-        ) { level -> phone.level = setStream(AudioManager.STREAM_MUSIC, level) }
-            .apply { level = streamLevel(AudioManager.STREAM_MUSIC) }
+        ) { level -> setStream(AudioManager.STREAM_MUSIC, level) }
+            .apply {
+                onDragStateChange = { dragging -> if (!dragging) level = streamLevel(AudioManager.STREAM_MUSIC) }
+                level = streamLevel(AudioManager.STREAM_MUSIC)
+            }
             .tagColor(EditableColor.OUTPUT_SLIDER)
         mediaSlider = phone
         card.addView(
@@ -2386,7 +2395,10 @@ class OverlayController(
             // rather than the thin centre stick Android 12–14 keep.
             capsuleFullTrack = isAndroid15Sheet(),
         ) { level -> setStream(AudioManager.STREAM_MUSIC, level) }
-            .apply { level = streamLevel(AudioManager.STREAM_MUSIC) }
+            .apply {
+                onDragStateChange = { dragging -> if (!dragging) level = streamLevel(AudioManager.STREAM_MUSIC) }
+                level = streamLevel(AudioManager.STREAM_MUSIC)
+            }
         mediaSlider = slider
         card.addView(
             slider,
@@ -2495,6 +2507,8 @@ class OverlayController(
         minNonZeroFillExtraDp: Float = 0f,
         fadeLabelWhileDragging: Boolean = false,
         pressedHalo: Boolean = false,
+        motionFollowScale: Float = prefs.getHoldFollowScale(),
+        motionSettleScale: Float = prefs.getHoldSettleScale(),
         // Editors are visual-only: every slider is built non-interactive so a drag never moves the
         // demo level (a tap still resolves to its colour via the editor's own hit-test layer).
         interactive: Boolean = !isEditor(),
@@ -2521,6 +2535,8 @@ class OverlayController(
         minNonZeroFillExtraDp = minNonZeroFillExtraDp,
         fadeLabelWhileDragging = fadeLabelWhileDragging,
         pressedHalo = pressedHalo,
+        motionFollowScale = motionFollowScale,
+        motionSettleScale = motionSettleScale,
         interactive = interactive,
         onLevelChange = { onChange(it); armAutoHide() },
         onTouchStart = { handler.removeCallbacks(hideRunnable) },
