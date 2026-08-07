@@ -28,6 +28,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -122,6 +123,10 @@ private fun OverlaySetup(
 
     val prefs = remember { OverlayPrefs(context) }
     var version by remember { mutableStateOf(OverlayVersion.current(prefs)) }
+    var holdFollowScale by remember { mutableStateOf(prefs.getHoldFollowScale()) }
+    var holdSettleScale by remember { mutableStateOf(prefs.getHoldSettleScale()) }
+    var holdStepHaptics by remember { mutableStateOf(prefs.isHoldStepHapticsEnabled()) }
+    var holdStepHapticIntensity by remember { mutableStateOf(prefs.getHoldStepHapticIntensity()) }
 
     var canOverlay by remember { mutableStateOf(Settings.canDrawOverlays(context)) }
     var accessibilityOn by remember { mutableStateOf(isAccessibilityEnabled(context)) }
@@ -143,6 +148,10 @@ private fun OverlaySetup(
         canOverlay = Settings.canDrawOverlays(context)
         accessibilityOn = isAccessibilityEnabled(context)
         dndAccessOn = hasDndAccess(context)
+        holdFollowScale = prefs.getHoldFollowScale()
+        holdSettleScale = prefs.getHoldSettleScale()
+            holdStepHaptics = prefs.isHoldStepHapticsEnabled()
+            holdStepHapticIntensity = prefs.getHoldStepHapticIntensity()
         onPauseOrDispose { }
     }
 
@@ -220,6 +229,60 @@ private fun OverlaySetup(
             },
             onEdit = onEdit,
         )
+        Text(
+            text = "Motion",
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 12.dp),
+        )
+        InfoCard(
+            "These settings scale the overlay's easing while you hold the volume key. " +
+                "Leave both at 100% to keep the current behavior, or nudge them if you want the " +
+                "panel to catch up faster or settle more softly.",
+        )
+        SettingSlider(
+            title = "Hold follow speed",
+            value = holdFollowScale,
+            onValueChange = {
+                holdFollowScale = it
+                prefs.setHoldFollowScale(it)
+            },
+        )
+        SettingSlider(
+            title = "Hold settle speed",
+            value = holdSettleScale,
+            onValueChange = {
+                holdSettleScale = it
+                prefs.setHoldSettleScale(it)
+            },
+        )
+        Text(
+            text = "Haptics",
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 12.dp),
+        )
+        InfoCard(
+            "Optional tap feedback for repeated volume steps. The intensity slider keeps the " +
+                "same default feel, but you can make it lighter or stronger if you want.",
+        )
+        SettingSwitch(
+            title = "Step haptics while holding",
+            subtitle = "Light tap feedback on each repeated volume step.",
+            checked = holdStepHaptics,
+            onCheckedChange = {
+                holdStepHaptics = it
+                prefs.setHoldStepHapticsEnabled(it)
+            },
+        )
+        SettingSlider(
+            title = "Haptic intensity",
+            value = holdStepHapticIntensity,
+            valueRange = 0.5f..2.0f,
+            steps = 150,
+            onValueChange = {
+                holdStepHapticIntensity = it
+                prefs.setHoldStepHapticIntensity(it)
+            },
+        )
         Button(
             onClick = {
                 if (canOverlay) previewController.show()
@@ -234,6 +297,79 @@ private fun OverlaySetup(
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
         ) {
             Text(if (canOverlay) "Preview" else "Grant overlay to preview")
+        }
+    }
+}
+
+@Composable
+private fun SettingSlider(
+    title: String,
+    value: Float,
+    valueRange: ClosedFloatingPointRange<Float> = 0.5f..2.0f,
+    steps: Int = 149,
+    onValueChange: (Float) -> Unit,
+) {
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        ),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 4.dp),
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(text = title, style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        text = "${(value * 100).toInt()}%",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            VolumeSlider(
+                value = value,
+                onValueChange = onValueChange,
+                valueRange = valueRange,
+                steps = steps,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+    }
+}
+
+@Composable
+private fun SettingSwitch(
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        ),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 4.dp),
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(start = 14.dp, top = 10.dp, bottom = 10.dp, end = 8.dp),
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(text = title, style = MaterialTheme.typography.bodyLarge)
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Switch(
+                checked = checked,
+                onCheckedChange = onCheckedChange,
+            )
         }
     }
 }

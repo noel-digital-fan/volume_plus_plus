@@ -1,14 +1,20 @@
 package com.volume_plus_plus.app.service
 
 import android.accessibilityservice.AccessibilityService
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import android.provider.Settings
 import android.view.KeyEvent
 import android.view.accessibility.AccessibilityEvent
 import com.volume_plus_plus.app.overlay.AppVolumeController
 import com.volume_plus_plus.app.overlay.OverlayController
+import com.volume_plus_plus.app.data.OverlayPrefs
 import com.volume_plus_plus.app.shizuku.ShizukuManager
+import kotlin.math.roundToInt
 
 /**
  * Captures the hardware volume keys and, instead of the stock system panel, raises our own
@@ -23,6 +29,14 @@ class VolumeKeyService : AccessibilityService() {
     private var overlay: OverlayController? = null
     /** Remembers and re-applies per-app volumes across playback sessions, independent of the panel. */
     private var appVolume: AppVolumeController? = null
+    private val prefs by lazy { OverlayPrefs(this) }
+    private val vibrator: Vibrator by lazy {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            (getSystemService(VIBRATOR_MANAGER_SERVICE) as VibratorManager).defaultVibrator
+        } else {
+            @Suppress("DEPRECATION") getSystemService(VIBRATOR_SERVICE) as Vibrator
+        }
+    }
 
     private val handler = Handler(Looper.getMainLooper())
     /** Direction of the currently-held volume key (+1 up, -1 down, 0 = none). */
@@ -33,7 +47,9 @@ class VolumeKeyService : AccessibilityService() {
     private val repeat = object : Runnable {
         override fun run() {
             if (heldDirection == 0) return
-            overlay?.adjustAndShow(heldDirection)
+            if (overlay?.adjustAndShow(heldDirection) == true && prefs.isHoldStepHapticsEnabled()) {
+                tick()
+            }
             repeatDelay = (repeatDelay - REPEAT_STEP_MS).coerceAtLeast(REPEAT_MIN_MS)
             handler.postDelayed(this, repeatDelay)
         }
@@ -105,6 +121,21 @@ class VolumeKeyService : AccessibilityService() {
         appVolume?.destroy()
         appVolume = null
         return super.onUnbind(intent)
+    }
+
+    private fun tick() {
+        runCatching {
+            if (!vibrator.hasVibrator()) return
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val intensity = prefs.getHoldStepHapticIntensity()
+                val amplitude = (20f + 34f * intensity).roundToInt().coerceIn(1, 255)
+                vibrator.vibrate(VibrationEffect.createOneShot(8, amplitude))
+            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                @Suppress("DEPRECATION") vibrator.vibrate(8)
+            } else {
+                @Suppress("DEPRECATION") vibrator.vibrate(8)
+            }
+        }
     }
 
     private companion object {

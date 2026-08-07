@@ -57,10 +57,46 @@ class OverlayPrefs(context: Context) {
         prefs.edit().putString(KEY_SEVEN_EIGHT_VERSION, version.name).apply()
     }
 
+    /** Multiplier for the slider's follow speed while a held key is still stepping. */
+    fun getHoldFollowScale(): Float = prefs.getFloat(KEY_HOLD_FOLLOW_SCALE, 1f)
+
+    fun setHoldFollowScale(scale: Float) {
+        prefs.edit().putFloat(KEY_HOLD_FOLLOW_SCALE, scale.coerceIn(MIN_HOLD_SCALE, MAX_HOLD_SCALE)).apply()
+    }
+
+    /** Multiplier for the slider's fine settle speed once it is close to the target. */
+    fun getHoldSettleScale(): Float = prefs.getFloat(KEY_HOLD_SETTLE_SCALE, 1f)
+
+    fun setHoldSettleScale(scale: Float) {
+        prefs.edit().putFloat(KEY_HOLD_SETTLE_SCALE, scale.coerceIn(MIN_HOLD_SCALE, MAX_HOLD_SCALE)).apply()
+    }
+
+    /** Whether held volume-key steps should emit a gentle tap haptic. */
+    fun isHoldStepHapticsEnabled(): Boolean = prefs.getBoolean(KEY_HOLD_STEP_HAPTICS, false)
+
+    fun setHoldStepHapticsEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_HOLD_STEP_HAPTICS, enabled).apply()
+    }
+
+    /** Strength of the held-step tap haptic (1 = current default intensity). */
+    fun getHoldStepHapticIntensity(): Float = prefs.getFloat(KEY_HOLD_STEP_HAPTIC_INTENSITY, 1f)
+
+    fun setHoldStepHapticIntensity(intensity: Float) {
+        prefs.edit().putFloat(KEY_HOLD_STEP_HAPTIC_INTENSITY, intensity.coerceIn(MIN_HAPTIC_INTENSITY, MAX_HAPTIC_INTENSITY)).apply()
+    }
+
     private companion object {
         const val KEY_SKIN = "skin"
         const val KEY_ICON_SET = "icon_set"
         const val KEY_LEGACY_VERSION = "legacy_version"
         const val KEY_SEVEN_EIGHT_VERSION = "seven_eight_version"
+        const val KEY_HOLD_FOLLOW_SCALE = "hold_follow_scale"
+        const val KEY_HOLD_SETTLE_SCALE = "hold_settle_scale"
+        const val KEY_HOLD_STEP_HAPTICS = "hold_step_haptics"
+        const val KEY_HOLD_STEP_HAPTIC_INTENSITY = "hold_step_haptic_intensity"
+        const val MIN_HOLD_SCALE = 0.5f
+        const val MAX_HOLD_SCALE = 2.0f
+        const val MIN_HAPTIC_INTENSITY = 0.5f
+        const val MAX_HAPTIC_INTENSITY = 2.0f
     }
 }
