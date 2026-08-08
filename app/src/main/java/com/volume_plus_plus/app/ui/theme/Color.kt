@@ -1,6 +1,24 @@
 package com.volume_plus_plus.app.ui.theme
 
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
+
+// Material 3 has an error colour but no success colour, and on Android 12+ the scheme is the
+// device's dynamic palette, so there's nothing to derive a green from. These are the green tonal
+// palette's 40 and 80 tones — the same tones M3 uses for `error` — so a tick reads as deliberate
+// next to the red beside it whatever the wallpaper is doing.
+private val SuccessOnLight = Color(0xFF3B6939)
+private val SuccessOnDark = Color(0xFFA0D395)
+
+/**
+ * Green for a satisfied checklist step, picked off the resolved surface rather than the system
+ * setting so it follows the in-app Light/Dark/System choice and dynamic colour alike.
+ */
+val successColor: Color
+    @Composable get() =
+        if (MaterialTheme.colorScheme.surface.luminance() < 0.5f) SuccessOnDark else SuccessOnLight
 
 // Fallback palette for devices without dynamic color (pre-Android 12), generated from seed
 // #475D91 — a muted signal-indigo that sits close to what Material You produces on blue

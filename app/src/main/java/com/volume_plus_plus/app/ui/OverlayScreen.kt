@@ -7,6 +7,10 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -33,14 +37,20 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -55,6 +65,11 @@ import com.volume_plus_plus.app.overlay.LiveEditSession
 import com.volume_plus_plus.app.overlay.OverlayController
 import com.volume_plus_plus.app.overlay.OverlayVersion
 import com.volume_plus_plus.app.service.VolumeKeyService
+import kotlinx.coroutines.flow.first
+
+/** Three 900ms pulses ≈ the ~3s spotlight the Mixing tab asks for, plus the scroll that precedes it. */
+private const val HIGHLIGHT_PULSES = 3
+private const val HIGHLIGHT_PULSE_MS = 450
 
 /**
  * Setup screen for the volume-key overlay. Guides the user through the three grants it needs —
@@ -62,9 +77,16 @@ import com.volume_plus_plus.app.service.VolumeKeyService
  * Disturb / notification-policy access (needed to switch the ringer to vibrate/silent from the
  * overlay) — and shows whether per-app volume (Shizuku + Android 13) is available. State re-reads
  * on resume so returning from a Settings screen reflects immediately.
+ *
+ * [highlightSystemVolumeSwitch] is the Mixing tab asking us to point at the one setting that blocks
+ * mixing; it plays once and then reports back via [onHighlightShown].
  */
 @Composable
-fun OverlayScreen(contentPadding: PaddingValues) {
+fun OverlayScreen(
+    contentPadding: PaddingValues,
+    highlightSystemVolumeSwitch: Boolean = false,
+    onHighlightShown: () -> Unit = {},
+) {
     var editVersion by rememberSaveable { mutableStateOf<String?>(null) }
 
     val version = editVersion?.let { name -> runCatching { OverlayVersion.valueOf(name) }.getOrNull() }
@@ -72,6 +94,8 @@ fun OverlayScreen(contentPadding: PaddingValues) {
         OverlaySetup(
             contentPadding = contentPadding,
             onEdit = { editVersion = it.name },
+            highlightSystemVolumeSwitch = highlightSystemVolumeSwitch,
+            onHighlightShown = onHighlightShown,
         )
         return
     }
@@ -119,6 +143,8 @@ fun OverlayScreen(contentPadding: PaddingValues) {
 private fun OverlaySetup(
     contentPadding: PaddingValues,
     onEdit: (OverlayVersion) -> Unit,
+    highlightSystemVolumeSwitch: Boolean,
+    onHighlightShown: () -> Unit,
 ) {
     val context = LocalContext.current
 
@@ -158,17 +184,49 @@ private fun OverlaySetup(
         onPauseOrDispose { }
     }
 
+    val scrollState = rememberScrollState()
+    // Root-space vertical centres of the scroll viewport and of the "Use system volume control"
+    // card. Both are only known after the first layout pass, so the spotlight below waits for them.
+    var viewportCenter by remember { mutableStateOf<Float?>(null) }
+    var switchCenter by remember { mutableStateOf<Float?>(null) }
+    val highlight = remember { Animatable(0f) }
+    val markHighlightShown by rememberUpdatedState(onHighlightShown)
+
+    // The Mixing tab's one-shot spotlight: scroll the switch into view, pulse it for ~3s, then tell
+    // the caller it has played. Reported from `finally` too, so leaving the tab mid-pulse still
+    // counts as shown rather than replaying on the way back.
+    LaunchedEffect(highlightSystemVolumeSwitch) {
+        if (!highlightSystemVolumeSwitch) return@LaunchedEffect
+        try {
+            val (cardY, viewportY) = snapshotFlow { switchCenter to viewportCenter }
+                .first { (card, viewport) -> card != null && viewport != null }
+            // Rest with the switch centred in the viewport; animateScrollBy clamps on its own when
+            // the list can't travel that far (e.g. the switch is already near the end).
+            scrollState.animateScrollBy(cardY!! - viewportY!!)
+            repeat(HIGHLIGHT_PULSES) {
+                highlight.animateTo(1f, tween(HIGHLIGHT_PULSE_MS))
+                highlight.animateTo(0f, tween(HIGHLIGHT_PULSE_MS))
+            }
+        } finally {
+            markHighlightShown()
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(contentPadding)
-            .verticalScroll(rememberScrollState()),
+            // Outside `verticalScroll`, so this measures the viewport and not the scrolled content.
+            .onGloballyPositioned {
+                viewportCenter = it.positionInRoot().y + it.size.height / 2f
+            }
+            .verticalScroll(scrollState),
     ) {
         ScreenHeader(title = "Overlay", subtitle = "Replace the system volume panel")
 
         InfoCard(
             "Press the volume keys anywhere to open Volume++'s own panel with a slider for each " +
-                "app that's playing. Needs the two permissions below. Per-app sliders also require " +
+                "app that's playing. Needs the three permissions below. Per-app sliders also require " +
                 "Shizuku running and Android 13+.",
         )
 
@@ -230,6 +288,10 @@ private fun OverlaySetup(
             onCheckedChange = {
                 systemVolumePanel = it
                 prefs.setSystemVolumePanelEnabled(it)
+            },
+            highlight = highlight.value,
+            modifier = Modifier.onGloballyPositioned {
+                switchCenter = it.positionInRoot().y + it.size.height / 2f
             },
         )
 
@@ -361,18 +423,33 @@ private fun SettingSlider(
     }
 }
 
+/**
+ * A titled switch row. [highlight] (0..1) tints the card and draws a matching outline, so an
+ * animation driving it makes the row pulse — used to point the user at one specific setting.
+ */
 @Composable
 private fun SettingSwitch(
     title: String,
     subtitle: String,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+    highlight: Float = 0f,
 ) {
     Card(
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+            containerColor = lerp(
+                MaterialTheme.colorScheme.surfaceContainerLow,
+                MaterialTheme.colorScheme.primaryContainer,
+                highlight,
+            ),
         ),
-        modifier = Modifier
+        border = if (highlight > 0f) {
+            BorderStroke(2.dp, MaterialTheme.colorScheme.primary.copy(alpha = highlight))
+        } else {
+            null
+        },
+        modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 20.dp, vertical = 4.dp),
     ) {

@@ -47,6 +47,10 @@ fun MainScreen(
 ) {
     var tab by rememberSaveable { mutableStateOf(Tab.VOLUME) }
     val snackbar = remember { SnackbarHostState() }
+    // One-shot request from the Mixing tab: send the user to Overlay and spotlight the switch that
+    // is blocking mixing. Deliberately not saved across process death — it only makes sense as the
+    // immediate follow-up to that button press.
+    var highlightSystemVolumeSwitch by remember { mutableStateOf(false) }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -79,8 +83,20 @@ fun MainScreen(
     ) { padding ->
         when (tab) {
             Tab.VOLUME -> VolumePanelScreen(contentPadding = padding, snackbar = snackbar)
-            Tab.MIXING -> MixAudioScreen(contentPadding = padding, snackbar = snackbar, prefs = prefs)
-            Tab.OVERLAY -> OverlayScreen(contentPadding = padding)
+            Tab.MIXING -> MixAudioScreen(
+                contentPadding = padding,
+                snackbar = snackbar,
+                prefs = prefs,
+                onOpenOverlaySettings = {
+                    highlightSystemVolumeSwitch = true
+                    tab = Tab.OVERLAY
+                },
+            )
+            Tab.OVERLAY -> OverlayScreen(
+                contentPadding = padding,
+                highlightSystemVolumeSwitch = highlightSystemVolumeSwitch,
+                onHighlightShown = { highlightSystemVolumeSwitch = false },
+            )
         }
     }
 }

@@ -34,6 +34,35 @@ never individual apps. Volume++ replaces that panel outright and fills in both g
   level you set doesn't reset back to full the next time the app makes a sound — it only resets
   once the app's process is actually gone.
 
+## How audio mixing works
+
+Normally, when one app starts playing sound, Android asks whichever app was already playing to
+pause or go quiet — this is called **audio focus**. It's why starting a YouTube video pauses
+Spotify. Mixing makes an app ignore those requests, so its sound keeps playing on top of
+everything else.
+
+Under the hood, the Mixing tab flips the `TAKE_AUDIO_FOCUS` app-op for the app you toggle, via the
+privileged Shizuku helper (`appops set <package> TAKE_AUDIO_FOCUS ignore`). With that op ignored,
+the app's focus requests are silently dropped by the system, so nothing else is ever told to duck
+or pause on its behalf.
+
+**Using it:**
+
+- Turn on the switch for the app you want to *keep hearing* — for example, enable YouTube to keep
+  hearing it while Spotify plays.
+- Enabling just one of the two apps is enough; you don't need to toggle both.
+- Restart playback in that app for the change to take effect.
+
+**Caveats:**
+
+- With audio mixing on, some apps may freeze, replay ads, or lose their pause/resume controls
+  (media buttons and notification controls are wired to the focus system too). If an app
+  misbehaves, turn its switch off to go back to normal.
+- Mixing runs through the Volume++ panel, so the Mixing tab is disabled while **Use system volume
+  control** is on in the Overlay tab. Turn that switch off to re-enable mixing.
+- Shizuku must be installed and running, since the app's own UID isn't allowed to change another
+  app's app-ops.
+
 ## How it works
 
 - **`VolumeKeyService`** — an `AccessibilityService` that grabs `KEYCODE_VOLUME_UP` /
