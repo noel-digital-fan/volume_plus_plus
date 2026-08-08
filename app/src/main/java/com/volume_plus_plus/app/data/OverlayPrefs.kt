@@ -57,6 +57,17 @@ class OverlayPrefs(context: Context) {
         prefs.edit().putString(KEY_SEVEN_EIGHT_VERSION, version.name).apply()
     }
 
+    /**
+     * Whether the volume keys should be left to Android's own volume panel instead of opening the
+     * Volume++ overlay. Off by default — the overlay is what the app is for; this is the opt-out.
+     * While it's on the chosen skin drives nothing, so the settings UI greys the style picker out.
+     */
+    fun isSystemVolumePanelEnabled(): Boolean = prefs.getBoolean(KEY_SYSTEM_VOLUME_PANEL, false)
+
+    fun setSystemVolumePanelEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_SYSTEM_VOLUME_PANEL, enabled).apply()
+    }
+
     /** Multiplier for the slider's follow speed while a held key is still stepping. */
     fun getHoldFollowScale(): Float = prefs.getFloat(KEY_HOLD_FOLLOW_SCALE, 1f)
 
@@ -90,6 +101,7 @@ class OverlayPrefs(context: Context) {
         const val KEY_ICON_SET = "icon_set"
         const val KEY_LEGACY_VERSION = "legacy_version"
         const val KEY_SEVEN_EIGHT_VERSION = "seven_eight_version"
+        const val KEY_SYSTEM_VOLUME_PANEL = "system_volume_panel"
         const val KEY_HOLD_FOLLOW_SCALE = "hold_follow_scale"
         const val KEY_HOLD_SETTLE_SCALE = "hold_settle_scale"
         const val KEY_HOLD_STEP_HAPTICS = "hold_step_haptics"

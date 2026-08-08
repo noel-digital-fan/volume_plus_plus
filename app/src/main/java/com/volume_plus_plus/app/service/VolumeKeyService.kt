@@ -73,6 +73,15 @@ class VolumeKeyService : AccessibilityService() {
             event.keyCode == KeyEvent.KEYCODE_VOLUME_DOWN
         if (!isVolumeKey) return super.onKeyEvent(event)
 
+        // The user asked for Android's built-in volume control, so don't consume the keys — the
+        // system panel handles them exactly as it would without this app. Read live (the setting can
+        // be flipped while the service stays connected); a held repeat is dropped below with the key.
+        if (prefs.isSystemVolumePanelEnabled()) {
+            heldDirection = 0
+            handler.removeCallbacks(repeat)
+            return super.onKeyEvent(event)
+        }
+
         // Without draw-over-other-apps we can't show our panel — leave the system UI in charge.
         if (!Settings.canDrawOverlays(this)) return super.onKeyEvent(event)
 

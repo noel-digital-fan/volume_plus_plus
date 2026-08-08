@@ -2447,15 +2447,21 @@ class OverlayController(
     }
 
     /**
-     * Switch the ringer to [mode]. Silencing (and, on some builds, vibrate) needs Do-Not-Disturb /
-     * notification-policy access; without it the system refuses the write. When that happens we send
-     * the user to the access screen so the mode becomes available — matching the stock volume dialog.
+     * Switch the ringer to [mode]. Silent takes the [silenceRinger] route so it only mutes the
+     * ring/notification volume and never drags Do Not Disturb along; the other modes are a plain
+     * write, which on some builds needs Do-Not-Disturb / notification-policy access — without it the
+     * system refuses it, and we then send the user to the access screen so the mode becomes
+     * available, matching the stock volume dialog.
      */
     private fun setRinger(mode: Int) {
         // In an editor the ringer is synthetic — flip the demo state only, never the real ringer.
         preview?.let { it.ringerMode = mode; return }
         liveEdit?.let { it.ringerMode = mode; return }
-        runCatching { audioManager.ringerMode = mode }
+        if (mode == AudioManager.RINGER_MODE_SILENT) {
+            silenceRinger()
+        } else {
+            runCatching { audioManager.ringerMode = mode }
+        }
         // A short haptic tick confirms the vibrate selection (all rich panels: Android 9–11 onwards).
         if (mode == AudioManager.RINGER_MODE_VIBRATE) vibrateOnce()
         if (audioManager.ringerMode != mode &&
@@ -2464,6 +2470,40 @@ class OverlayController(
         ) {
             requestDndAccess()
         }
+    }
+
+    /**
+     * Drop the ringer to silent the way the volume keys do, leaving Do Not Disturb untouched.
+     *
+     * [AudioManager.setRingerMode] is the framework's *external* ringer path, and its zen helper
+     * switches Do Not Disturb on ("Alarms only") whenever an app asks that way for silent while zen
+     * is off — that, not this app, is what used to enable DND here (it's unconditional in
+     * ZenModeHelper on Android 9–15, which is why the panel could never opt out of it). Lowering the
+     * ring stream instead takes the *internal* path the hardware keys use, where the ringer/DND link
+     * is governed by the device's own volume policy and is off on every modern build. So: mute the
+     * ring stream, which drops the ringer to vibrate (straight to silent where there's no vibrator),
+     * then step down once more to land on silent. Muting first also normalises what that step is
+     * measured from — the platform ignores a second consecutive "lower", and briefly debounces one
+     * that has just arrived from normal.
+     *
+     * FLAG_ALLOW_RINGER_MODES asks for the ringer-mode step explicitly, so this keeps working on
+     * builds where ring isn't the stream that carries the ringer modes (Android 15's split
+     * ring/notification volumes).
+     */
+    private fun silenceRinger() {
+        if (audioManager.ringerMode == AudioManager.RINGER_MODE_SILENT) return
+        val flags = AudioManager.FLAG_ALLOW_RINGER_MODES
+        runCatching {
+            audioManager.adjustStreamVolume(AudioManager.STREAM_RING, AudioManager.ADJUST_MUTE, flags)
+        }
+        if (audioManager.ringerMode == AudioManager.RINGER_MODE_SILENT) return
+        runCatching {
+            audioManager.adjustStreamVolume(AudioManager.STREAM_RING, AudioManager.ADJUST_LOWER, flags)
+        }
+        // If the platform still held it at vibrate (it refuses to enter silent while DND is already
+        // on) we stop here: the only remaining way to silent is the external setter, i.e. asking for
+        // a DND change, which this control must never do. The ring and notification streams are muted
+        // either way, and the panel re-reads the real mode afterwards, so what it shows stays honest.
     }
 
     /** One short buzz — feedback when the user picks the vibrate ringer mode. */

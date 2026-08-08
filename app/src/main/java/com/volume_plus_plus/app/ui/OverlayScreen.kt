@@ -40,6 +40,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -123,6 +124,7 @@ private fun OverlaySetup(
 
     val prefs = remember { OverlayPrefs(context) }
     var version by remember { mutableStateOf(OverlayVersion.current(prefs)) }
+    var systemVolumePanel by remember { mutableStateOf(prefs.isSystemVolumePanelEnabled()) }
     var holdFollowScale by remember { mutableStateOf(prefs.getHoldFollowScale()) }
     var holdSettleScale by remember { mutableStateOf(prefs.getHoldSettleScale()) }
     var holdStepHaptics by remember { mutableStateOf(prefs.isHoldStepHapticsEnabled()) }
@@ -148,6 +150,7 @@ private fun OverlaySetup(
         canOverlay = Settings.canDrawOverlays(context)
         accessibilityOn = isAccessibilityEnabled(context)
         dndAccessOn = hasDndAccess(context)
+        systemVolumePanel = prefs.isSystemVolumePanelEnabled()
         holdFollowScale = prefs.getHoldFollowScale()
         holdSettleScale = prefs.getHoldSettleScale()
             holdStepHaptics = prefs.isHoldStepHapticsEnabled()
@@ -208,21 +211,40 @@ private fun OverlaySetup(
 
         val ready = canOverlay && accessibilityOn && dndAccessOn
         Text(
-            text = if (ready) "Ready — press a volume key to try it."
-            else "Complete all three steps above to activate the overlay.",
+            text = when {
+                // With the system panel in charge the overlay never opens, so don't claim it's ready.
+                systemVolumePanel -> "Android's own volume panel is in use — the overlay stays off."
+                ready -> "Ready — press a volume key to try it."
+                else -> "Complete all three steps above to activate the overlay."
+            },
             style = MaterialTheme.typography.bodyMedium,
-            color = if (ready) MaterialTheme.colorScheme.primary
+            color = if (ready && !systemVolumePanel) MaterialTheme.colorScheme.primary
             else MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
         )
 
+        SettingSwitch(
+            title = "Use system volume control",
+            subtitle = "Leave the volume keys to Android's built-in panel instead of the overlay.",
+            checked = systemVolumePanel,
+            onCheckedChange = {
+                systemVolumePanel = it
+                prefs.setSystemVolumePanelEnabled(it)
+            },
+        )
+
+        // The style only describes the overlay, so it has nothing to drive while the system panel is
+        // in charge: the whole section greys out and stops responding until the switch goes back off.
+        val styleEnabled = !systemVolumePanel
         Text(
             text = "Style",
             style = MaterialTheme.typography.titleMedium,
+            color = if (styleEnabled) Color.Unspecified else disabledContentColor(),
             modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 8.dp),
         )
         SkinPicker(
             selected = version,
+            enabled = styleEnabled,
             onSelect = {
                 version = it
                 it.apply(prefs)
@@ -374,11 +396,16 @@ private fun SettingSwitch(
     }
 }
 
+/**
+ * The style list. With [enabled] false every row is inert — no selecting, no per-style editor — and
+ * greyed to match, so the section reads as unavailable rather than merely unresponsive.
+ */
 @Composable
 private fun SkinPicker(
     selected: OverlayVersion,
     onSelect: (OverlayVersion) -> Unit,
     onEdit: (OverlayVersion) -> Unit,
+    enabled: Boolean = true,
 ) {
     Card(
         colors = CardDefaults.cardColors(
@@ -396,22 +423,25 @@ private fun SkinPicker(
                         .fillMaxWidth()
                         .selectable(
                             selected = option == selected,
+                            enabled = enabled,
                             onClick = { onSelect(option) },
                         )
                         .padding(start = 12.dp, end = 8.dp, top = 4.dp, bottom = 4.dp),
                 ) {
                     RadioButton(
                         selected = option == selected,
+                        enabled = enabled,
                         onClick = { onSelect(option) },
                     )
                     Spacer(Modifier.width(8.dp))
                     Text(
                         text = option.label,
                         style = MaterialTheme.typography.bodyLarge,
+                        color = if (enabled) Color.Unspecified else disabledContentColor(),
                         modifier = Modifier.weight(1f),
                     )
                     // Each style gets its own independent editor (position + colours).
-                    TextButton(onClick = { onEdit(option) }) { Text("Edit") }
+                    TextButton(onClick = { onEdit(option) }, enabled = enabled) { Text("Edit") }
                 }
             }
         }
@@ -458,6 +488,12 @@ private fun StatusStep(
         }
     }
 }
+
+/** Text colour for a disabled control — Material 3's disabled opacity, as used by the greyed rows
+ *  on the Volume tab, so a switched-off section looks the same wherever it appears. */
+@Composable
+private fun disabledContentColor(): Color =
+    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
 
 /** True if our [VolumeKeyService] appears in the system's enabled-accessibility-services list. */
 private fun isAccessibilityEnabled(context: Context): Boolean {
