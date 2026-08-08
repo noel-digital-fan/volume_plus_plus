@@ -1,5 +1,7 @@
 package com.volume_plus_plus.app.ui
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -268,6 +270,7 @@ private fun AppRow(
 
 @Composable
 private fun ConnectState(status: ShizukuManager.Status, onGrant: () -> Unit) {
+    val context = LocalContext.current
     Box(
         contentAlignment = Alignment.Center,
         modifier = Modifier.fillMaxSize().padding(24.dp),
@@ -282,18 +285,44 @@ private fun ConnectState(status: ShizukuManager.Status, onGrant: () -> Unit) {
                     Text("Connecting to Shizuku…")
                 }
 
-                ShizukuManager.Status.NOT_RUNNING -> {
+                ShizukuManager.Status.NOT_INSTALLED -> {
                     Text(
-                        "Shizuku isn't running",
+                        "Shizuku is required",
                         style = MaterialTheme.typography.titleMedium,
                     )
                     Text(
                         "This app needs Shizuku to change audio focus without root. " +
-                            "Install the Shizuku app, start its service (via wireless " +
-                            "debugging or ADB), then reopen this screen.",
+                            "Install it, then reopen this screen.",
                         style = MaterialTheme.typography.bodyMedium,
                     )
-                    Button(onClick = onGrant) { Text("Check again") }
+                    Button(onClick = {
+                        val intent = Intent(
+                            Intent.ACTION_VIEW,
+                            Uri.parse("https://github.com/RikkaApps/Shizuku/releases"),
+                        ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        runCatching { context.startActivity(intent) }
+                    }) { Text("Get Shizuku") }
+                }
+
+                ShizukuManager.Status.NOT_RUNNING -> {
+                    Text(
+                        "Shizuku isn't set up",
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    Text(
+                        "Open Shizuku and start its service (via wireless debugging or " +
+                            "ADB), then come back to this screen.",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    Button(onClick = {
+                        val launch = context.packageManager
+                            .getLaunchIntentForPackage(ShizukuManager.PACKAGE_NAME)
+                        if (launch != null) {
+                            runCatching { context.startActivity(launch) }
+                        } else {
+                            onGrant()
+                        }
+                    }) { Text("Open Shizuku") }
                 }
 
                 ShizukuManager.Status.PERMISSION_REQUIRED -> {

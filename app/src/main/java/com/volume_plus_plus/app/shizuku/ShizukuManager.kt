@@ -23,7 +23,9 @@ import rikka.shizuku.Shizuku
 object ShizukuManager {
 
     enum class Status {
-        /** Shizuku app not installed or its service not started. */
+        /** Shizuku app isn't installed on the device. */
+        NOT_INSTALLED,
+        /** Shizuku app is installed but its service hasn't been started. */
         NOT_RUNNING,
         /** Service is up but hasn't granted us access yet. */
         PERMISSION_REQUIRED,
@@ -33,9 +35,12 @@ object ShizukuManager {
         READY,
     }
 
+    /** Package name of the Shizuku app, used to check install state and to launch it. */
+    const val PACKAGE_NAME = "moe.shizuku.privileged.api"
+
     private const val PERMISSION_CODE = 4919
 
-    private val _status = MutableStateFlow(Status.NOT_RUNNING)
+    private val _status = MutableStateFlow(Status.NOT_INSTALLED)
     val status: StateFlow<Status> = _status.asStateFlow()
 
     private var appContext: Context? = null
@@ -73,6 +78,10 @@ object ShizukuManager {
 
     /** Re-evaluate the current state; safe to call from onResume. */
     fun refresh() {
+        if (!isInstalled()) {
+            _status.value = Status.NOT_INSTALLED
+            return
+        }
         if (!Shizuku.pingBinder()) {
             _status.value = Status.NOT_RUNNING
             return
@@ -83,8 +92,20 @@ object ShizukuManager {
         }
     }
 
+    private fun isInstalled(): Boolean =
+        try {
+            appContext!!.packageManager.getPackageInfo(PACKAGE_NAME, 0)
+            true
+        } catch (e: PackageManager.NameNotFoundException) {
+            false
+        }
+
     /** Kick off the permission dialog (or bind directly if already granted). */
     fun requestPermission() {
+        if (!isInstalled()) {
+            _status.value = Status.NOT_INSTALLED
+            return
+        }
         if (!Shizuku.pingBinder()) {
             _status.value = Status.NOT_RUNNING
             return
@@ -111,8 +132,8 @@ object ShizukuManager {
             .processNameSuffix("mixaudio")
             .debuggable(false)
             // Bump whenever UserService's interface changes so Shizuku restarts a fresh service
-            // instead of reusing a cached older one (v3 adds isPackageRunning).
-            .version(3)
+            // instead of reusing a cached older one (v4 adds setRingerMode).
+            .version(4)
 
     private val connection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
@@ -161,6 +182,28 @@ object ShizukuManager {
             val svc = service ?: return@withContext false
             try {
                 svc.getAudioFocusMode(packageName).contains("ignore")
+            } catch (e: RemoteException) {
+                false
+            }
+        }
+
+    /**
+     * Set the device ringer mode through the privileged service, which reaches AudioService's
+     * internal setter — the system volume panel's own path. Unlike the app's `AudioManager`, that
+     * one can select SILENT without the framework turning Do Not Disturb on. [mode] is "NORMAL",
+     * "VIBRATE" or "SILENT".
+     *
+     * Returning true means only that the command was *delivered*, not that it took effect: the
+     * `set-ringer-mode` sub-command is recent, and a platform that doesn't carry it exits 0 with no
+     * output rather than reporting anything, so there's nothing here to tell the two apart. Callers
+     * must confirm against the real ringer mode and fall back on their own.
+     */
+    suspend fun setRingerMode(mode: String): Boolean =
+        withContext(Dispatchers.IO) {
+            val svc = service ?: return@withContext false
+            try {
+                svc.setRingerMode(mode)
+                true
             } catch (e: RemoteException) {
                 false
             }

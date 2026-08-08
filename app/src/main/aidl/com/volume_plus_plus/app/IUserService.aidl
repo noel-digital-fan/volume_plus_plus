@@ -45,4 +45,14 @@ interface IUserService {
      * live session.
      */
     boolean isPackageRunning(String packageName) = 6;
+
+    /**
+     * Sets the device ringer mode to {@code mode} ("NORMAL", "VIBRATE" or "SILENT") via
+     * {@code cmd audio set-ringer-mode}, which lands on AudioService's internal setter — the same
+     * one the system volume panel uses. That matters for SILENT: the app's own
+     * {@code AudioManager.setRingerMode} is the *external* path, whose zen helper switches Do Not
+     * Disturb on, while the internal one leaves DND completely alone. Returns the raw command
+     * output; the sub-command only exists on newer platforms, so callers must handle failure.
+     */
+    String setRingerMode(String mode) = 7;
 }

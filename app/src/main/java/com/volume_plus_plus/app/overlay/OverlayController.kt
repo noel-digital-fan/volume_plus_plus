@@ -135,7 +135,23 @@ class OverlayController(
     private fun curIconSet(): IconSet = editVersion()?.iconSet ?: prefs.getIconSet()
     private fun curSevenEight(): SevenEightVersion =
         editVersion()?.sevenEightVersion ?: prefs.getSevenEightVersion()
-    private fun curRingerMode(): Int = preview?.ringerMode ?: liveEdit?.ringerMode ?: audioManager.ringerMode
+    /** The ringer mode to draw — the device's real one outside an editor, since every local ringer
+     *  write in [setRinger] completes inside its binder call, so reading the mode straight back is
+     *  both instant and honest. The one exception is [pendingSilent], the privileged silent request
+     *  that has to cross into another process; it shows for as long as that call is in flight and
+     *  reconciles the moment it settles, so a tap still repaints immediately. */
+    private fun curRingerMode(): Int = preview?.ringerMode ?: liveEdit?.ringerMode ?: when {
+        pendingSilent -> AudioManager.RINGER_MODE_SILENT
+        else -> audioManager.ringerMode
+    }
+
+    /** A privileged silent request is in flight (see [silenceRinger]). */
+    private var pendingSilent = false
+
+    /** The mode last asked for while this panel has been open — not always the one the platform
+     *  granted (see [silenceRinger]). [cycleRinger] steps from this rather than from the live mode, so
+     *  a refused mode is stepped past on the next tap instead of being retried forever. */
+    private var requestedRingerMode: Int? = null
 
     // ── customization (position + colour) ───────────────────────────────────────────────────────────
 
@@ -195,6 +211,14 @@ class OverlayController(
     /** The media (STREAM_MUSIC) slider currently on screen, so volume-key presses can update it in
      *  place instead of rebuilding the whole panel (which flickers, esp. the Sound sheet). */
     private var mediaSlider: VolumeSlider? = null
+    /** The Android 9–11 ringer button currently on screen, so a mode change can retint it in place
+     *  instead of rebuilding the whole panel (which cancels the app-sync load and drops frames, and
+     *  is what made rapid mode taps feel laggy). */
+    private var ringerIcon: ImageView? = null
+    /** The Android 12–15 ringer mode buttons currently on screen, for the same in-place repaint —
+     *  held here as well as in the builder's closure so [refreshRingerViews] can reach them when a
+     *  privileged silent request lands after the tap that started it. */
+    private var ringerButtons: Map<Int, ImageView>? = null
     private var loadJob: Job? = null
 
     /** The Android 15 media-output picker modal, added over the (dimmed) Sound sheet without tearing
@@ -423,6 +447,11 @@ class OverlayController(
         root = null
         panel = null
         mediaSlider = null
+        ringerIcon = null
+        ringerButtons = null
+        // A fresh panel starts from the device's real ringer mode again.
+        requestedRingerMode = null
+        pendingSilent = false
         pickerOverlay = null
         notifSlider = null
         notifSliderRow = null
@@ -1043,6 +1072,8 @@ class OverlayController(
 
     private fun populate(container: ViewGroup) {
         mediaSlider = null // each path re-captures the live media slider it builds
+        ringerIcon = null
+        ringerButtons = null
         genericRingSlider = null
         alarmsOnlyRow = null
         // Drop any previous app box/timer; the renderers that show apps re-arm it via startAppSync,
@@ -1432,14 +1463,19 @@ class OverlayController(
         // an accent tint here, but tying it to the icon colour makes that control meaningful). On the
         // Android 13–15 skin the "Active mode icon" override (modeIconColor), when set, wins instead.
         val ring = ImageView(context).apply {
-            setImageDrawable(tintedIcon(ringerIconRes(), style.modeIconColor ?: style.iconTint))
             val p = dp(15); setPadding(p, p, p, p)
             background = roundedBg(style.containerColor, corner)
             setOnClickListener {
                 if (isEditor()) return@setOnClickListener // visual-only preview
-                cycleRinger(); render()
+                armAutoHide() // interacting keeps the panel alive
+                // Retint this one icon rather than render()-ing the whole panel: a rebuild cancels the
+                // app-sync load and recreates every slider, which is what made a fast series of taps
+                // lag behind the finger and land on a stale icon.
+                cycleRinger(); refreshRingerViews()
             }
         }
+        ringerIcon = ring
+        refreshRingerViews()
         container.addView(
             ring,
             LinearLayout.LayoutParams(cardW, cardW).apply { bottomMargin = dp(style.spacingDp) },
@@ -2368,7 +2404,7 @@ class OverlayController(
                     } else {
                         ringerMenuOpen = true // first tap on the current mode opens the chooser
                     }
-                    refreshRingerButtons(modeButtons)
+                    refreshRingerViews()
                 }
             }
             modeButtons[mode] = btn
@@ -2377,7 +2413,8 @@ class OverlayController(
                 LinearLayout.LayoutParams(ringSize, ringSize).apply { topMargin = dp(2); bottomMargin = dp(2) },
             )
         }
-        refreshRingerButtons(modeButtons)
+        ringerButtons = modeButtons
+        refreshRingerViews()
 
         // Thin-track media slider with a wide rounded fill capsule; the note rides inside the capsule
         // (tinted on-accent so it reads against the fill).
@@ -2436,74 +2473,127 @@ class OverlayController(
         }
     }
 
+    /** Repaint whichever ringer control is on screen (Android 9–11's single button, or Android
+     *  12–15's mode row) from the current mode — no panel rebuild. */
+    private fun refreshRingerViews() {
+        ringerIcon?.setImageDrawable(tintedIcon(ringerIconRes(), style.modeIconColor ?: style.iconTint))
+        ringerButtons?.let { refreshRingerButtons(it) }
+    }
+
     private fun cycleRinger() {
         val order = intArrayOf(
             AudioManager.RINGER_MODE_NORMAL,
             AudioManager.RINGER_MODE_VIBRATE,
             AudioManager.RINGER_MODE_SILENT,
         )
-        val start = order.indexOf(curRingerMode()).coerceAtLeast(0)
+        // Step from what was last asked for, not from the live mode: where the platform refuses silent
+        // (see [silenceRinger]) the ringer stays on vibrate, and cycling from *that* would ask for
+        // silent again on every tap — leaving the button stuck on vibrate with no way back to normal.
+        val start = order.indexOf(requestedRingerMode ?: curRingerMode()).coerceAtLeast(0)
         setRinger(order[(start + 1) % order.size])
     }
 
     /**
-     * Switch the ringer to [mode]. Silent takes the [silenceRinger] route so it only mutes the
-     * ring/notification volume and never drags Do Not Disturb along; the other modes are a plain
-     * write, which on some builds needs Do-Not-Disturb / notification-policy access — without it the
-     * system refuses it, and we then send the user to the access screen so the mode becomes
-     * available, matching the stock volume dialog.
+     * Switch the ringer to [mode], synchronously. Silent takes the [silenceRinger] route so it only
+     * mutes the ring volume and never drags Do Not Disturb along; the other modes are a plain write,
+     * which on some builds needs Do-Not-Disturb / notification-policy access — without it the system
+     * refuses it, and we then send the user to the access screen so the mode becomes available,
+     * matching the stock volume dialog.
+     *
+     * Every route here settles before returning, so callers can repaint straight from
+     * [curRingerMode] and what they draw is what the device is actually in — including when the
+     * platform grants something other than [mode].
      */
     private fun setRinger(mode: Int) {
         // In an editor the ringer is synthetic — flip the demo state only, never the real ringer.
         preview?.let { it.ringerMode = mode; return }
         liveEdit?.let { it.ringerMode = mode; return }
+        // This selection supersedes any silent request still crossing to the privileged service.
+        pendingSilent = false
+        requestedRingerMode = mode
         if (mode == AudioManager.RINGER_MODE_SILENT) {
             silenceRinger()
-        } else {
-            runCatching { audioManager.ringerMode = mode }
+            return
         }
+        runCatching { audioManager.ringerMode = mode }
         // A short haptic tick confirms the vibrate selection (all rich panels: Android 9–11 onwards).
         if (mode == AudioManager.RINGER_MODE_VIBRATE) vibrateOnce()
-        if (audioManager.ringerMode != mode &&
-            mode != AudioManager.RINGER_MODE_NORMAL &&
-            !notificationManager.isNotificationPolicyAccessGranted
-        ) {
+        // Leaving (or entering) silent counts as a zen change, so the platform throws for it without
+        // notification-policy access. It's the only reason a plain write is refused, so a mode that
+        // didn't take while access is missing means exactly that — offer the access screen.
+        if (audioManager.ringerMode != mode && !notificationManager.isNotificationPolicyAccessGranted) {
             requestDndAccess()
         }
     }
 
     /**
-     * Drop the ringer to silent the way the volume keys do, leaving Do Not Disturb untouched.
+     * Select silent without ever letting Do Not Disturb come along.
      *
      * [AudioManager.setRingerMode] is the framework's *external* ringer path, and its zen helper
      * switches Do Not Disturb on ("Alarms only") whenever an app asks that way for silent while zen
      * is off — that, not this app, is what used to enable DND here (it's unconditional in
-     * ZenModeHelper on Android 9–15, which is why the panel could never opt out of it). Lowering the
-     * ring stream instead takes the *internal* path the hardware keys use, where the ringer/DND link
-     * is governed by the device's own volume policy and is off on every modern build. So: mute the
-     * ring stream, which drops the ringer to vibrate (straight to silent where there's no vibrator),
-     * then step down once more to land on silent. Muting first also normalises what that step is
-     * measured from — the platform ignores a second consecutive "lower", and briefly debounces one
-     * that has just arrived from normal.
+     * ZenModeHelper on Android 9–15, which is why the panel could never opt out of it). The internal
+     * setter has no such link, but it's behind `enforceVolumeController`, so only the system volume
+     * panel may call it directly. Hence two routes, best first:
      *
-     * FLAG_ALLOW_RINGER_MODES asks for the ringer-mode step explicitly, so this keeps working on
-     * builds where ring isn't the stream that carries the ringer modes (Android 15's split
-     * ring/notification volumes).
+     *  1. **The privileged service.** `cmd audio set-ringer-mode SILENT` lands on that internal
+     *     setter, so it selects real silent and leaves zen exactly where it was. It runs in the
+     *     Shizuku process, so it needs Shizuku connected and a platform new enough to carry the
+     *     sub-command — hence the fallback below when it isn't available.
+     *  2. **The volume-key path**, which any app may use: mute the ring stream, dropping the ringer
+     *     to vibrate (straight to silent where there's no vibrator), then step down once more to try
+     *     for silent. Muting first also clears what would otherwise block that step — the platform
+     *     ignores a "lower" that repeats the previous direction, and debounces one arriving just
+     *     after a lower that itself dropped normal → vibrate; a mute is neither, so the two run
+     *     back-to-back with nothing to wait for. FLAG_ALLOW_RINGER_MODES asks for the ringer-mode
+     *     step explicitly, so this keeps working on builds where ring isn't the stream carrying the
+     *     ringer modes (Android 15's split ring/notification volumes).
+     *
+     * **Route 2 usually stops at vibrate, and that's a permission, not a race.** AudioService's
+     * `checkForRingerModeChange` only converts vibrate → silent when its
+     * `VolumePolicy.volumeDownToEnterSilent` is set, and SystemUI — the only caller allowed to set
+     * that policy — has left it off since Oreo (the same reason the hardware keys can't reach silent
+     * on stock Android either). So on a phone with a vibrator the mute is as far as it goes. The
+     * ring is muted either way, and the panel then repaints from the real mode, showing vibrate —
+     * what the device is genuinely in — rather than a silent it isn't. Turning DND on to force the
+     * point is deliberately not an option here, with or without a fallback.
      */
     private fun silenceRinger() {
+        if (audioManager.ringerMode == AudioManager.RINGER_MODE_SILENT) return
+        if (ShizukuManager.isReady) {
+            // Crosses a process boundary, so it can't be awaited inline. Show silent while it's in
+            // flight — the tap has to land immediately — and settle on the truth either way.
+            pendingSilent = true
+            scope.launch {
+                ShizukuManager.setRingerMode(SHELL_RINGER_SILENT)
+                // A newer selection may have superseded this one while the shell call ran; it owns
+                // the ringer now, so leave whatever it chose alone.
+                if (requestedRingerMode != AudioManager.RINGER_MODE_SILENT) return@launch
+                pendingSilent = false
+                // Judge it by where the ringer actually landed, never by the command's result: a
+                // platform without the sub-command exits 0 and prints nothing, so success and
+                // "silently did nothing" are indistinguishable from the shell's side.
+                if (audioManager.ringerMode != AudioManager.RINGER_MODE_SILENT) muteRingStream()
+                refreshRingerViews()
+            }
+            return
+        }
+        muteRingStream()
+    }
+
+    /** Route 2 of [silenceRinger]: the volume-key path every app may use. Both steps complete inside
+     *  their binder call, so the mode is settled by the time this returns. */
+    private fun muteRingStream() {
         if (audioManager.ringerMode == AudioManager.RINGER_MODE_SILENT) return
         val flags = AudioManager.FLAG_ALLOW_RINGER_MODES
         runCatching {
             audioManager.adjustStreamVolume(AudioManager.STREAM_RING, AudioManager.ADJUST_MUTE, flags)
         }
+        // Reached outright on a device with no vibrator, where muting the ring *is* silent.
         if (audioManager.ringerMode == AudioManager.RINGER_MODE_SILENT) return
         runCatching {
             audioManager.adjustStreamVolume(AudioManager.STREAM_RING, AudioManager.ADJUST_LOWER, flags)
         }
-        // If the platform still held it at vibrate (it refuses to enter silent while DND is already
-        // on) we stop here: the only remaining way to silent is the external setter, i.e. asking for
-        // a DND change, which this control must never do. The ring and notification streams are muted
-        // either way, and the panel re-reads the real mode afterwards, so what it shows stays honest.
     }
 
     /** One short buzz — feedback when the user picks the vibrate ringer mode. */
@@ -2826,6 +2916,9 @@ class OverlayController(
 
         /** How often an open panel re-checks which apps are playing, to add/remove per-app sliders. */
         const val APPS_SYNC_MS = 1500L
+
+        /** The mode name `cmd audio set-ringer-mode` takes for silent (see [silenceRinger]). */
+        const val SHELL_RINGER_SILENT = "SILENT"
 
         /** Output device types that count as an external headset (Bluetooth or wired/USB) — when one is
          *  connected the media-output label shows its name instead of "This phone". These are all

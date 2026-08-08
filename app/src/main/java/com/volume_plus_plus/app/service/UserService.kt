@@ -44,6 +44,17 @@ class UserService() : IUserService.Stub() {
     }
 
     /**
+     * Ringer mode via AudioService's *internal* setter, which is what `cmd audio set-ringer-mode`
+     * reaches — the path the system volume panel itself uses, and the only one that can select
+     * SILENT without the framework switching Do Not Disturb on (see the AIDL doc). The sub-command
+     * is recent, so on older platforms this comes back as the shell's own error text and the caller
+     * falls back.
+     */
+    override fun setRingerMode(mode: String): String {
+        return runCommand(arrayOf("cmd", "audio", "set-ringer-mode", mode))
+    }
+
+    /**
      * Enumerates active playback via the public [AudioManager.getActivePlaybackConfigurations],
      * then reflects the hidden per-config accessors (piid, client uid) — reachable here because
      * the shell UID is exempt from the non-SDK interface blocklist. Requires Android 8+ (the
