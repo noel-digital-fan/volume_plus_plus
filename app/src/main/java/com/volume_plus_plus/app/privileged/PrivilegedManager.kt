@@ -1,12 +1,17 @@
-package com.volume_plus_plus.app.shizuku
+package com.volume_plus_plus.app.privileged
 
 import android.content.ComponentName
 import android.content.Context
+import android.content.Intent
 import android.content.ServiceConnection
 import android.content.pm.PackageManager
 import android.os.IBinder
 import android.os.RemoteException
+import com.topjohnwu.superuser.Shell
+import com.topjohnwu.superuser.ipc.RootService
 import com.volume_plus_plus.app.IUserService
+import com.volume_plus_plus.app.data.MixPrefs
+import com.volume_plus_plus.app.service.RootUserService
 import com.volume_plus_plus.app.service.UserService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -19,13 +24,27 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import rikka.shizuku.Shizuku
+import java.io.File
 
 /**
- * Single entry point for talking to Shizuku. Tracks [setup] as a flow the UI observes, requests
- * permission, binds the privileged [UserService], and exposes suspend helpers that forward to it
- * off the main thread.
+ * Single entry point for everything privileged. Tracks [setup] as a flow the UI observes, gets a
+ * privileged process going, binds [UserService] inside it, and exposes suspend helpers that forward
+ * to it off the main thread.
+ *
+ * Two [Backend]s can supply that process, and the app is indifferent to which:
+ *
+ * - **[Backend.SHIZUKU]** — Shizuku spawns [UserService] at the shell UID. Needs the Shizuku app,
+ *   its service started over ADB or wireless debugging, and an authorisation grant.
+ * - **[Backend.ROOT]** — libsu spawns [RootUserService] as root, which hosts the very same
+ *   [UserService]. One tap, no ADB, no third-party app.
+ *
+ * Both routes end at the same `IUserService` binder over the same implementation, so [isReady] and
+ * every suspend helper below behave identically whichever one is live — callers never branch on it.
  */
-object ShizukuManager {
+object PrivilegedManager {
+
+    /** Which kind of privileged process supplies (or would supply) the service. */
+    enum class Backend { SHIZUKU, ROOT }
 
     /**
      * Everything the mixing page needs to know, as independent observations rather than one
@@ -58,10 +77,39 @@ object ShizukuManager {
          * stopping that leftover service and starting Shizuku again.
          */
         val serverUnusable: Boolean = false,
+        /**
+         * Which backend is being used. Every field above describes the Shizuku route and is simply
+         * not meaningful while this is [Backend.ROOT] — there is no app to install, no service to
+         * start and nothing to authorise.
+         */
+        val backend: Backend = Backend.SHIZUKU,
+        /**
+         * The device looks rooted, so root mode is worth offering. A guess on purpose: it is settled
+         * without ever running `su`, because doing that would put a superuser prompt in front of a
+         * user who hasn't asked for one yet. See [looksRooted].
+         */
+        val rootAvailable: Boolean = false,
+        /** Root mode was tried and the superuser request was refused (or no root shell was had). */
+        val rootDenied: Boolean = false,
     )
 
     /** Package name of the Shizuku app, used to check install state and to launch it. */
     const val PACKAGE_NAME = "moe.shizuku.privileged.api"
+
+    /** Where a `su` binary sits on the roots that still put one on the filesystem. */
+    private val SU_PATHS = listOf(
+        "/system/bin/su", "/system/xbin/su", "/system/sbin/su", "/sbin/su",
+        "/su/bin/su", "/vendor/bin/su", "/odm/bin/su", "/product/bin/su", "/debug_ramdisk/su",
+    )
+
+    /** Root managers whose presence is good evidence of root even when `su` is hidden from us. */
+    private val ROOT_MANAGERS = listOf(
+        "com.topjohnwu.magisk",   // Magisk
+        "io.github.huskydg.magisk", // Magisk Delta
+        "me.weishu.kernelsu",     // KernelSU
+        "me.bmax.apatch",         // APatch
+        "eu.chainfire.supersu",   // SuperSU
+    )
 
     private const val PERMISSION_CODE = 4919
 
@@ -103,6 +151,17 @@ object ShizukuManager {
     private var serverUnusable = false
     private var permissionTimeoutJob: Job? = null
 
+    /** The backend in force, restored from [MixPrefs] on [init] and changed only by the user. */
+    private var backend = Backend.SHIZUKU
+
+    /** Latched when a root request comes back refused, so the UI can say so instead of retrying. */
+    private var rootDenied = false
+
+    /** [looksRooted]'s answer, settled once per process — it can't change without a reboot. */
+    private var rootAvailable: Boolean? = null
+
+    private val prefs: MixPrefs? get() = appContext?.let { MixPrefs(it) }
+
     /**
      * Shizuku's listeners are process-wide and hold nothing but this singleton, so they are
      * registered once and kept for the life of the process. [init] can be called by more than one
@@ -129,6 +188,10 @@ object ShizukuManager {
             Shizuku.addBinderDeadListener(onBinderDead)
             Shizuku.addRequestPermissionResultListener(onPermissionResult)
         }
+        // The user's backend choice outlives the process, so pick it back up before measuring
+        // anything — otherwise a root-mode user gets a flash of the Shizuku checklist on every
+        // launch while the singleton catches up.
+        if (prefs?.isRootMode() == true) backend = Backend.ROOT
         refresh()
     }
 
@@ -160,6 +223,14 @@ object ShizukuManager {
      * bind stays failed, so a plain refresh can't put the user back on an endless spinner.
      */
     private fun refresh(force: Boolean) {
+        if (backend == Backend.ROOT) {
+            // Nothing to measure on this route: there is no server to ping and no grant to read, so
+            // either we hold a binder or we go and ask for one. A refused request latches until the
+            // user asks again, so a timer-driven refresh can't re-prompt them over and over.
+            if (service == null && (force || (!connectFailed && !rootDenied))) bindRoot(force)
+            else publish()
+            return
+        }
         if (!serverAnswering()) {
             // Shizuku's service is gone, and so is anything it had spawned for us. A later service
             // is a different service, so nothing we concluded about this one carries over.
@@ -185,6 +256,19 @@ object ShizukuManager {
 
     /** Push the current facts to the UI. The only place [setup] is ever written. */
     private fun publish() {
+        if (backend == Backend.ROOT) {
+            // None of the Shizuku observations mean anything on this route, so they're left at their
+            // defaults rather than reported as failures the user would then try to "fix".
+            _setup.value = Setup(
+                connecting = binding,
+                connectFailed = connectFailed,
+                ready = service != null,
+                backend = Backend.ROOT,
+                rootAvailable = looksRooted(),
+                rootDenied = rootDenied,
+            )
+            return
+        }
         val answering = serverAnswering()
         val running = answering && !serverUnusable
         _setup.value = Setup(
@@ -195,7 +279,110 @@ object ShizukuManager {
             connectFailed = connectFailed,
             ready = service != null,
             serverUnusable = answering && serverUnusable,
+            backend = Backend.SHIZUKU,
+            rootAvailable = looksRooted(),
+            rootDenied = rootDenied,
         )
+    }
+
+    // ── root backend ────────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Switch to root mode and go for it. The choice is written through to [MixPrefs] first so it
+     * survives the process, and the latches are cleared so an earlier refusal doesn't block a fresh
+     * attempt the user has just explicitly asked for.
+     */
+    fun useRoot() {
+        prefs?.setRootMode(true)
+        backend = Backend.ROOT
+        rootDenied = false
+        connectFailed = false
+        cancelTimeout()
+        cancelPermissionTimeout()
+        // Anything Shizuku had is a different privileged process on a route we're leaving.
+        service = null
+        binding = false
+        refresh(force = true)
+    }
+
+    /**
+     * Go back to the Shizuku route, tearing the root process down on the way out — leaving it up
+     * would keep a root daemon alive for a backend nothing is using any more.
+     */
+    fun useShizuku() {
+        prefs?.setRootMode(false)
+        stopRootService()
+        backend = Backend.SHIZUKU
+        rootDenied = false
+        connectFailed = false
+        service = null
+        binding = false
+        cancelTimeout()
+        refresh(force = true)
+    }
+
+    /**
+     * Whether the device looks rooted, settled **without running `su`**: asking a root shell for
+     * proof is itself what raises the superuser prompt, and putting that in front of someone who
+     * has only opened the mixing page would be a nasty surprise. So this reads two prompt-free
+     * signals — a `su` binary on any of the usual paths, and an installed root manager. The second
+     * matters because Magisk and its successors deliberately keep `su` out of the filesystem paths
+     * an app can see. A false positive costs nothing: the button is offered, and the real attempt
+     * reports honestly if there was no root after all.
+     */
+    private fun looksRooted(): Boolean {
+        rootAvailable?.let { return it }
+        val byBinary = SU_PATHS.any { runCatching { File(it).exists() }.getOrDefault(false) }
+        val byManager = appContext?.packageManager?.let { pm ->
+            ROOT_MANAGERS.any { runCatching { pm.getPackageInfo(it, 0); true }.getOrDefault(false) }
+        } ?: false
+        return (byBinary || byManager).also { rootAvailable = it }
+    }
+
+    /**
+     * Ask for root, then bind [RootUserService] inside it.
+     *
+     * The shell is taken first and checked with [Shell.isRoot] rather than binding straight away:
+     * libsu falls back to an unprivileged `sh` when root isn't granted, and a service bound over
+     * *that* would connect perfectly happily and then fail every privileged call for reasons the
+     * user could never diagnose. Better to find out here and say so.
+     */
+    private fun bindRoot(force: Boolean) {
+        val ctx = appContext ?: return
+        if (service != null || (binding && !force)) {
+            publish()
+            return
+        }
+        cancelTimeout()
+        binding = true
+        connectFailed = false
+        rootDenied = false
+        publish()
+        Shell.getShell { shell ->
+            if (!shell.isRoot) {
+                // Refused, or there was never any root to grant.
+                rootDenied = true
+                bindFailed()
+                return@getShell
+            }
+            try {
+                RootService.bind(Intent(ctx, RootUserService::class.java), connection)
+            } catch (e: Throwable) {
+                bindFailed()
+                return@getShell
+            }
+            // A root process that fails to come up answers with silence, same as Shizuku does, so
+            // the spinner needs its own way out.
+            timeoutJob = scope.launch {
+                delay(BIND_TIMEOUT_MS)
+                if (service == null) bindFailed()
+            }
+        }
+    }
+
+    private fun stopRootService() {
+        val ctx = appContext ?: return
+        runCatching { RootService.stop(Intent(ctx, RootUserService::class.java)) }
     }
 
     /**
@@ -227,6 +414,9 @@ object ShizukuManager {
      * sends the user there instead.
      */
     fun requestPermission(): Boolean {
+        // Root mode has no authorisation step of its own — the superuser prompt is the whole of it,
+        // and it is raised by [bindRoot].
+        if (backend == Backend.ROOT) return false
         if (!serverAnswering()) {
             refresh(force = false)
             return false
@@ -346,6 +536,14 @@ object ShizukuManager {
         cancelTimeout()
         binding = false
         service = null
+        if (backend == Backend.ROOT) {
+            stopRootService()
+            // A refusal is its own, more specific story ([Setup.rootDenied]); only a root shell we
+            // actually got and then couldn't bind over counts as a connection failure to retry.
+            connectFailed = !rootDenied
+            publish()
+            return
+        }
         runCatching { Shizuku.unbindUserService(serviceArgs, connection, true) }
         connectFailed = serverAnswering() && hasPermission()
         publish()

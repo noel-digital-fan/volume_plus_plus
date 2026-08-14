@@ -44,7 +44,7 @@ import com.volume_plus_plus.app.data.OverlayCustomizationPrefs
 import com.volume_plus_plus.app.data.OverlayPrefs
 import com.volume_plus_plus.app.config.AppSettings
 import com.volume_plus_plus.app.i18n.Localization
-import com.volume_plus_plus.app.shizuku.ShizukuManager
+import com.volume_plus_plus.app.privileged.PrivilegedManager
 import com.volume_plus_plus.app.ui.theme.ThemeMode
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -77,7 +77,7 @@ private val strings get() = Localization.strings
  *   per-app sliders, and SEE MORE / DONE.
  *
  * Owned by [com.volume_plus_plus.app.service.VolumeKeyService], which runs in the app process so
- * this can call [ShizukuManager] directly.
+ * this can call [PrivilegedManager] directly.
  *
  * Per-app slider levels are read from and written back through [appVolume], which persists each
  * app's chosen volume for the lifetime of its playback session and re-applies it as players churn —
@@ -2565,12 +2565,12 @@ class OverlayController(
      */
     private fun silenceRinger() {
         if (audioManager.ringerMode == AudioManager.RINGER_MODE_SILENT) return
-        if (ShizukuManager.isReady) {
+        if (PrivilegedManager.isReady) {
             // Crosses a process boundary, so it can't be awaited inline. Show silent while it's in
             // flight — the tap has to land immediately — and settle on the truth either way.
             pendingSilent = true
             scope.launch {
-                ShizukuManager.setRingerMode(SHELL_RINGER_SILENT)
+                PrivilegedManager.setRingerMode(SHELL_RINGER_SILENT)
                 // A newer selection may have superseded this one while the shell call ran; it owns
                 // the ringer now, so leave whatever it chose alone.
                 if (requestedRingerMode != AudioManager.RINGER_MODE_SILENT) return@launch
@@ -2804,7 +2804,7 @@ class OverlayController(
         // active playback configuration; isMusicActive() reflects real output, so it clears those
         // stale entries when the user isn't actually listening to anything.
         if (!audioManager.isMusicActive()) return emptyList()
-        val players = if (ShizukuManager.isReady) ShizukuManager.getActivePlayers() else emptyList()
+        val players = if (PrivilegedManager.isReady) PrivilegedManager.getActivePlayers() else emptyList()
         val pm = context.packageManager
         val foreground = foregroundPackage
         return players

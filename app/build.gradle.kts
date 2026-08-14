@@ -27,6 +27,12 @@ android {
             optimization {
                 enable = false
             }
+            // Inert while optimization is off, but wired up now so that turning it on later can't
+            // silently strip the reflectively-loaded root-mode classes. See proguard-rules.pro.
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
         }
     }
     compileOptions {
@@ -55,6 +61,8 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.shizuku.api)
     implementation(libs.shizuku.provider)
+    // Root mode: hosts the same UserService/IUserService in a root process, so Shizuku is optional.
+    implementation(libs.libsu.service)
     implementation(libs.kotlinx.coroutines.android)
     testImplementation(libs.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))

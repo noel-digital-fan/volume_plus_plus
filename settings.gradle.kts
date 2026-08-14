@@ -19,6 +19,8 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        // libsu (root mode) is published on JitPack, not Maven Central.
+        maven { url = uri("https://jitpack.io") }
     }
 }
 

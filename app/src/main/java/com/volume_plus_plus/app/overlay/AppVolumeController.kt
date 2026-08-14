@@ -6,7 +6,7 @@ import android.media.AudioPlaybackConfiguration
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
-import com.volume_plus_plus.app.shizuku.ShizukuManager
+import com.volume_plus_plus.app.privileged.PrivilegedManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -18,7 +18,7 @@ import kotlinx.coroutines.launch
  *
  * ## Why this exists
  *
- * A per-app volume is applied by [ShizukuManager.setPlayerVolume] to a single player instance id
+ * A per-app volume is applied by [PrivilegedManager.setPlayerVolume] to a single player instance id
  * (piid) via the hidden `PlayerProxy.setVolume`. A piid is ephemeral: whenever an app pauses and
  * resumes — which routinely happens across a screen off/on, a lock/unlock, or any transient
  * interruption — the app usually releases its old player and registers a fresh one with a *new*
@@ -41,7 +41,7 @@ import kotlinx.coroutines.launch
  * A still-alive process that simply isn't playing is not surfaced as active (no slider, nothing to
  * re-apply) but its remembered volume is kept, so resuming playback restores it rather than
  * resetting. Process liveness is what distinguishes "closed" from "backgrounded", and it is read
- * from the privileged service ([ShizukuManager.isPackageRunning]) because the app's own UID can't
+ * from the privileged service ([PrivilegedManager.isPackageRunning]) because the app's own UID can't
  * see other processes.
  *
  * The re-apply loop runs while anything is playing or any session is still being tracked, and idles
@@ -132,7 +132,7 @@ class AppVolumeController(context: Context) {
         session.applied.clear()
         scope.launch {
             for (piid in piids) {
-                if (ShizukuManager.setPlayerVolume(piid, level)) session.applied[piid] = level
+                if (PrivilegedManager.setPlayerVolume(piid, level)) session.applied[piid] = level
             }
         }
         ensurePolling()
@@ -165,7 +165,7 @@ class AppVolumeController(context: Context) {
 
     private fun sync() {
         handler.removeCallbacks(pollRunnable)
-        if (!running || !ShizukuManager.isReady) {
+        if (!running || !PrivilegedManager.isReady) {
             // Nothing we can do without the privileged link; retry shortly while we still hold state.
             if (running && sessions.isNotEmpty()) {
                 dormantWait = true
@@ -194,8 +194,8 @@ class AppVolumeController(context: Context) {
     private suspend fun queryPlayers(): Map<String, List<Int>> {
         // isMusicActive() reflects real output, so a "started" player an idle app keeps registered
         // (e.g. some social apps) doesn't count as playback the user is listening to.
-        if (!audioManager.isMusicActive || !ShizukuManager.isReady) return emptyMap()
-        return ShizukuManager.getActivePlayers()
+        if (!audioManager.isMusicActive || !PrivilegedManager.isReady) return emptyMap()
+        return PrivilegedManager.getActivePlayers()
             .filter { it.packageName != appContext.packageName }
             .groupBy { it.packageName }
             .mapValues { (_, players) -> players.map { it.piid } }
@@ -216,7 +216,7 @@ class AppVolumeController(context: Context) {
             if (session.volume < DEFAULT_VOLUME) {
                 for (piid in piids) {
                     if (session.applied[piid] == session.volume) continue
-                    if (ShizukuManager.setPlayerVolume(piid, session.volume)) {
+                    if (PrivilegedManager.setPlayerVolume(piid, session.volume)) {
                         session.applied[piid] = session.volume
                     }
                 }
@@ -228,7 +228,7 @@ class AppVolumeController(context: Context) {
         // it once the app is gone (closed / force-stopped) so the next playback starts fresh at full.
         val dormant = sessions.keys.filter { it !in playing }
         for (pkg in dormant) {
-            if (!ShizukuManager.isPackageRunning(pkg)) {
+            if (!PrivilegedManager.isPackageRunning(pkg)) {
                 sessions.remove(pkg)
             } else {
                 // Alive but silent: clear applied piids so a resume re-pushes to whatever new players

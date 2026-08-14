@@ -30,6 +30,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -59,7 +60,7 @@ import com.volume_plus_plus.app.data.AppRepository
 import com.volume_plus_plus.app.data.MixPrefs
 import com.volume_plus_plus.app.data.OverlayPrefs
 import com.volume_plus_plus.app.i18n.strings
-import com.volume_plus_plus.app.shizuku.ShizukuManager
+import com.volume_plus_plus.app.privileged.PrivilegedManager
 import com.volume_plus_plus.app.ui.theme.successColor
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -93,7 +94,7 @@ fun MixAudioScreen(
     val s = strings()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val setup by ShizukuManager.setup.collectAsState()
+    val setup by PrivilegedManager.setup.collectAsState()
     val overlayPrefs = remember { OverlayPrefs(context) }
 
     var apps by remember { mutableStateOf<List<AppInfo>>(emptyList()) }
@@ -111,13 +112,16 @@ fun MixAudioScreen(
 
     // Keep the checklist honest while the user is off installing, starting or authorising Shizuku.
     // Stops once mixing is live, while the app is in the background, and while the page is blocked
-    // off behind the system-panel switch, none of which have a checklist to keep up to date.
+    // off behind the system-panel switch, none of which have a checklist to keep up to date. Root
+    // mode is exempt too: there is nothing on that route the user can go away and change, so a
+    // repeating refresh would only re-ask for superuser access they've already answered.
     val lifecycleOwner = LocalLifecycleOwner.current
-    LaunchedEffect(setup.ready, systemVolumePanel, lifecycleOwner) {
+    LaunchedEffect(setup.ready, setup.backend, systemVolumePanel, lifecycleOwner) {
         if (setup.ready || systemVolumePanel) return@LaunchedEffect
+        if (setup.backend == PrivilegedManager.Backend.ROOT) return@LaunchedEffect
         lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             while (true) {
-                ShizukuManager.refresh()
+                PrivilegedManager.refresh()
                 delay(SETUP_POLL_MS)
             }
         }
@@ -185,7 +189,7 @@ fun MixAudioScreen(
                             isEnabled = enabled.contains(app.packageName),
                             onToggle = { want ->
                                 scope.launch {
-                                    val ok = ShizukuManager
+                                    val ok = PrivilegedManager
                                         .setAudioFocusIgnored(app.packageName, want)
                                     if (ok) {
                                         prefs.setEnabled(app.packageName, want)
@@ -374,11 +378,11 @@ private fun AppRow(
  * has authorised us is unknowable until its service is actually running.
  */
 @Composable
-private fun SetupChecklist(setup: ShizukuManager.Setup) {
+private fun SetupChecklist(setup: PrivilegedManager.Setup) {
     val s = strings()
     val context = LocalContext.current
     val openShizuku: () -> Unit = {
-        val launch = context.packageManager.getLaunchIntentForPackage(ShizukuManager.PACKAGE_NAME)
+        val launch = context.packageManager.getLaunchIntentForPackage(PrivilegedManager.PACKAGE_NAME)
         // No launcher activity means a broken install; the download page beats a dead button.
         if (launch != null) {
             runCatching { context.startActivity(launch) }
@@ -395,13 +399,21 @@ private fun SetupChecklist(setup: ShizukuManager.Setup) {
     val running = installed && setup.serviceRunning
     val granted = running && setup.accessGranted && !setup.connectFailed
 
+    // Root mode replaces the whole Shizuku route rather than adding to it, so it gets the page to
+    // itself while it's selected.
+    if (setup.backend == PrivilegedManager.Backend.ROOT) {
+        RootChecklist(setup = setup)
+        return
+    }
+
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
-            text = s.setupIntroShizuku,
+            text = if (setup.rootAvailable) s.setupIntroRooted else s.setupIntroShizuku,
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
         )
+        if (setup.rootAvailable) RootShortcut()
         Surface(
             color = MaterialTheme.colorScheme.surfaceContainerLow,
             shape = RoundedCornerShape(16.dp),
@@ -443,8 +455,8 @@ private fun SetupChecklist(setup: ShizukuManager.Setup) {
                     actionLabel = if (running && setup.connectFailed) s.tryAgain else s.setupGrantAccess,
                     onAction = {
                         if (setup.connectFailed) {
-                            ShizukuManager.retry()
-                        } else if (!ShizukuManager.requestPermission()) {
+                            PrivilegedManager.retry()
+                        } else if (!PrivilegedManager.requestPermission()) {
                             // Nothing to prompt with — a pre-v11 Shizuku, or an earlier "deny and
                             // don't ask again". Authorising from inside Shizuku is the way through.
                             openShizuku()
@@ -453,6 +465,97 @@ private fun SetupChecklist(setup: ShizukuManager.Setup) {
                     busy = running && setup.connecting,
                 )
             }
+        }
+    }
+}
+
+/**
+ * The one-tap way past the Shizuku checklist on a rooted device. Offered alongside the three steps
+ * rather than instead of them: [PrivilegedManager.Setup.rootAvailable] is a prompt-free guess, so it
+ * can be wrong, and the Shizuku route has to stay right there when it is.
+ */
+@Composable
+private fun RootShortcut() {
+    val s = strings()
+    Surface(
+        color = MaterialTheme.colorScheme.primaryContainer,
+        shape = RoundedCornerShape(16.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 8.dp),
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = s.rootShortcutTitle,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                )
+                Text(
+                    text = s.rootShortcutBody,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                )
+            }
+            Spacer(Modifier.width(12.dp))
+            Button(onClick = { PrivilegedManager.useRoot() }) { Text(s.rootUse) }
+        }
+    }
+}
+
+/**
+ * What the mixing page shows while root mode is selected but not yet connected. The Shizuku steps
+ * have nothing to say here — there's no app to install and no grant to chase, just a superuser
+ * prompt that has been answered or hasn't — so this stands in for the lot of them, and always
+ * carries the way back to Shizuku in case root turns out not to be there.
+ */
+@Composable
+private fun RootChecklist(setup: PrivilegedManager.Setup) {
+    val s = strings()
+    val failed = setup.rootDenied || setup.connectFailed
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = s.rootRunning,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
+        )
+        Surface(
+            color = MaterialTheme.colorScheme.surfaceContainerLow,
+            shape = RoundedCornerShape(16.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 12.dp),
+        ) {
+            Column(modifier = Modifier.padding(vertical = 6.dp)) {
+                SetupStep(
+                    number = 1,
+                    title = when {
+                        setup.rootDenied -> s.rootRefused
+                        setup.connectFailed -> s.rootHelperFailed
+                        else -> s.rootGranting
+                    },
+                    detail = when {
+                        setup.rootDenied -> s.rootRefusedDetail
+                        setup.connectFailed -> s.rootHelperFailedDetail
+                        else -> s.rootGrantingDetail
+                    },
+                    done = false,
+                    unlocked = true,
+                    actionLabel = s.tryAgain,
+                    onAction = { PrivilegedManager.useRoot() },
+                    busy = !failed && setup.connecting,
+                )
+            }
+        }
+        TextButton(
+            onClick = { PrivilegedManager.useShizuku() },
+            modifier = Modifier.padding(horizontal = 20.dp),
+        ) {
+            Text(s.rootUseShizukuInstead)
         }
     }
 }

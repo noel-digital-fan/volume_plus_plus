@@ -29,8 +29,20 @@ class MixPrefs(context: Context) {
         prefs.edit().putBoolean(KEY_WARNING_DISMISSED, dismissed).apply()
     }
 
+    /**
+     * Whether the user chose root over Shizuku for the privileged service. Read on every process
+     * start, so the choice is restored before anything measures the Shizuku side and the user never
+     * sees a checklist they've already opted out of.
+     */
+    fun isRootMode(): Boolean = prefs.getBoolean(KEY_USE_ROOT, false)
+
+    fun setRootMode(useRoot: Boolean) {
+        prefs.edit().putBoolean(KEY_USE_ROOT, useRoot).apply()
+    }
+
     private companion object {
         const val KEY_ENABLED = "enabled"
         const val KEY_WARNING_DISMISSED = "warning_dismissed"
+        const val KEY_USE_ROOT = "use_root"
     }
 }

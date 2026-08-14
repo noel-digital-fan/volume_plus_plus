@@ -47,6 +47,12 @@
             android:permission="android.permission.INTERACT_ACROSS_USERS_FULL"
             tools:ignore="ExportedContentProvider" />
 
+        <!-- Note: .service.RootUserService is deliberately NOT declared here. libsu's RootService
+             is a ContextWrapper that only imitates a Service — the framework never instantiates it,
+             libsu does, in a root process it spawns itself. Declaring it makes the build fail
+             ("must extend android.app.Service"). It is kept from R8 by proguard-rules.pro instead,
+             since libsu resolves it reflectively by name. -->
+
         <service
             android:name=".service.VolumeKeyService"
             android:exported="false"

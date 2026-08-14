@@ -15,7 +15,7 @@ import com.volume_plus_plus.app.config.AppSettings
 import com.volume_plus_plus.app.data.MixPrefs
 import com.volume_plus_plus.app.i18n.LocalStrings
 import com.volume_plus_plus.app.i18n.rememberStrings
-import com.volume_plus_plus.app.shizuku.ShizukuManager
+import com.volume_plus_plus.app.privileged.PrivilegedManager
 import com.volume_plus_plus.app.ui.MainScreen
 import com.volume_plus_plus.app.ui.theme.ThemeMode
 import com.volume_plus_plus.app.ui.theme.VolumeTheme
@@ -26,7 +26,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        ShizukuManager.init(this)
+        PrivilegedManager.init(this)
         setContent {
             // Both settings live in AppSettings rather than in composition state: the overlay and the
             // accessibility service read the same values, and they have no route back into the UI.
@@ -68,13 +68,13 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         // The user may have started Shizuku or granted access while we were backgrounded.
-        ShizukuManager.refresh()
+        PrivilegedManager.refresh()
     }
 
     override fun onDestroy() {
         super.onDestroy()
         if (isFinishing) {
-            ShizukuManager.destroy()
+            PrivilegedManager.destroy()
         }
     }
 }

@@ -13,7 +13,7 @@ import android.view.accessibility.AccessibilityEvent
 import com.volume_plus_plus.app.overlay.AppVolumeController
 import com.volume_plus_plus.app.overlay.OverlayController
 import com.volume_plus_plus.app.data.OverlayPrefs
-import com.volume_plus_plus.app.shizuku.ShizukuManager
+import com.volume_plus_plus.app.privileged.PrivilegedManager
 import kotlin.math.roundToInt
 
 /**
@@ -58,7 +58,7 @@ class VolumeKeyService : AccessibilityService() {
     override fun onServiceConnected() {
         super.onServiceConnected()
         // Ensure the privileged link is alive even if the main UI was never opened this process.
-        ShizukuManager.init(this)
+        PrivilegedManager.init(this)
         // Guard against a repeat connect leaking the previous instances (a live playback callback and
         // poll loop): tear them down before rebuilding.
         overlay?.destroy()
