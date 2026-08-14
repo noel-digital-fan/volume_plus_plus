@@ -57,7 +57,9 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import com.volume_plus_plus.app.R
+import com.volume_plus_plus.app.config.AppConfig
 import com.volume_plus_plus.app.data.OverlayPrefs
+import com.volume_plus_plus.app.i18n.strings
 import com.volume_plus_plus.app.overlay.AppVolumeController
 import com.volume_plus_plus.app.overlay.EditOrientation
 import com.volume_plus_plus.app.overlay.LiveEditMode
@@ -146,6 +148,7 @@ private fun OverlaySetup(
     highlightSystemVolumeSwitch: Boolean,
     onHighlightShown: () -> Unit,
 ) {
+    val s = strings()
     val context = LocalContext.current
 
     val prefs = remember { OverlayPrefs(context) }
@@ -222,18 +225,14 @@ private fun OverlaySetup(
             }
             .verticalScroll(scrollState),
     ) {
-        ScreenHeader(title = "Overlay", subtitle = "Replace the system volume panel")
+        ScreenHeader(title = s.overlayTitle, subtitle = s.overlaySubtitle)
 
-        InfoCard(
-            "Press the volume keys anywhere to open Volume++'s own panel with a slider for each " +
-                "app that's playing. Needs the three permissions below. Per-app sliders also require " +
-                "Shizuku running and Android 13+.",
-        )
+        InfoCard(s.overlayIntro)
 
         StatusStep(
-            title = "1. Draw over other apps",
+            title = s.setupStep(1, s.overlayStepDrawOver),
             done = canOverlay,
-            actionLabel = "Grant",
+            actionLabel = s.grant,
             onAction = {
                 val intent = Intent(
                     Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
@@ -244,10 +243,10 @@ private fun OverlaySetup(
         )
 
         StatusStep(
-            title = "2. Enable the accessibility service",
-            subtitle = "Volume++ overlay — needed to catch the volume keys.",
+            title = s.setupStep(2, s.overlayStepAccessibility),
+            subtitle = s.overlayStepAccessibilityDetail,
             done = accessibilityOn,
-            actionLabel = "Open settings",
+            actionLabel = s.openSettings,
             onAction = {
                 val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -256,10 +255,10 @@ private fun OverlaySetup(
         )
 
         StatusStep(
-            title = "3. Allow Do Not Disturb access",
-            subtitle = "Needed to switch the ringer to vibrate/silent from the overlay.",
+            title = s.setupStep(3, s.overlayStepDnd),
+            subtitle = s.overlayStepDndDetail,
             done = dndAccessOn,
-            actionLabel = "Open settings",
+            actionLabel = s.openSettings,
             onAction = {
                 val intent = Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -271,9 +270,9 @@ private fun OverlaySetup(
         Text(
             text = when {
                 // With the system panel in charge the overlay never opens, so don't claim it's ready.
-                systemVolumePanel -> "Android's own volume panel is in use — the overlay stays off."
-                ready -> "Ready — press a volume key to try it."
-                else -> "Complete all three steps above to activate the overlay."
+                systemVolumePanel -> s.overlaySystemPanelInUse
+                ready -> s.overlayReady
+                else -> s.overlayIncomplete
             },
             style = MaterialTheme.typography.bodyMedium,
             color = if (ready && !systemVolumePanel) MaterialTheme.colorScheme.primary
@@ -282,8 +281,8 @@ private fun OverlaySetup(
         )
 
         SettingSwitch(
-            title = "Use system volume control",
-            subtitle = "Leave the volume keys to Android's built-in panel instead of the overlay.",
+            title = s.overlayUseSystemPanel,
+            subtitle = s.overlayUseSystemPanelDetail,
             checked = systemVolumePanel,
             onCheckedChange = {
                 systemVolumePanel = it
@@ -299,7 +298,7 @@ private fun OverlaySetup(
         // in charge: the whole section greys out and stops responding until the switch goes back off.
         val styleEnabled = !systemVolumePanel
         Text(
-            text = "Style",
+            text = s.overlayStyle,
             style = MaterialTheme.typography.titleMedium,
             color = if (styleEnabled) Color.Unspecified else disabledContentColor(),
             modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 8.dp),
@@ -314,17 +313,13 @@ private fun OverlaySetup(
             onEdit = onEdit,
         )
         Text(
-            text = "Motion",
+            text = s.overlayMotion,
             style = MaterialTheme.typography.titleMedium,
             modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 12.dp),
         )
-        InfoCard(
-            "These settings scale the overlay's easing while you hold the volume key. " +
-                "Leave both at 100% to keep the current behavior, or nudge them if you want the " +
-                "panel to catch up faster or settle more softly.",
-        )
+        InfoCard(s.overlayMotionInfo)
         SettingSlider(
-            title = "Hold follow speed",
+            title = s.overlayHoldFollowSpeed,
             value = holdFollowScale,
             onValueChange = {
                 holdFollowScale = it
@@ -332,7 +327,7 @@ private fun OverlaySetup(
             },
         )
         SettingSlider(
-            title = "Hold settle speed",
+            title = s.overlayHoldSettleSpeed,
             value = holdSettleScale,
             onValueChange = {
                 holdSettleScale = it
@@ -340,17 +335,14 @@ private fun OverlaySetup(
             },
         )
         Text(
-            text = "Haptics",
+            text = s.overlayHaptics,
             style = MaterialTheme.typography.titleMedium,
             modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 12.dp),
         )
-        InfoCard(
-            "Optional tap feedback for repeated volume steps. The intensity slider keeps the " +
-                "same default feel, but you can make it lighter or stronger if you want.",
-        )
+        InfoCard(s.overlayHapticsInfo)
         SettingSwitch(
-            title = "Step haptics while holding",
-            subtitle = "Light tap feedback on each repeated volume step.",
+            title = s.overlayStepHaptics,
+            subtitle = s.overlayStepHapticsDetail,
             checked = holdStepHaptics,
             onCheckedChange = {
                 holdStepHaptics = it
@@ -358,7 +350,7 @@ private fun OverlaySetup(
             },
         )
         SettingSlider(
-            title = "Haptic intensity",
+            title = s.overlayHapticIntensity,
             value = holdStepHapticIntensity,
             valueRange = 0.5f..2.0f,
             steps = 150,
@@ -380,8 +372,17 @@ private fun OverlaySetup(
             },
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
         ) {
-            Text(if (canOverlay) "Preview" else "Grant overlay to preview")
+            Text(if (canOverlay) s.overlayPreview else s.overlayGrantToPreview)
         }
+
+        // Which build this is. The app's version is centralised in AppConfig, which reads it back
+        // from the one place it's declared (app/build.gradle.kts).
+        Text(
+            text = s.appVersion(AppConfig.APP_NAME, AppConfig.VERSION_NAME),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 24.dp),
+        )
     }
 }
 
@@ -406,7 +407,7 @@ private fun SettingSlider(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(text = title, style = MaterialTheme.typography.bodyLarge)
                     Text(
-                        text = "${(value * 100).toInt()}%",
+                        text = strings().percent((value * 100).toInt()),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -518,7 +519,9 @@ private fun SkinPicker(
                         modifier = Modifier.weight(1f),
                     )
                     // Each style gets its own independent editor (position + colours).
-                    TextButton(onClick = { onEdit(option) }, enabled = enabled) { Text("Edit") }
+                    TextButton(onClick = { onEdit(option) }, enabled = enabled) {
+                        Text(strings().overlayEdit)
+                    }
                 }
             }
         }
@@ -533,6 +536,7 @@ private fun StatusStep(
     actionLabel: String,
     onAction: () -> Unit,
 ) {
+    val s = strings()
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
@@ -543,7 +547,7 @@ private fun StatusStep(
             painter = painterResource(
                 if (done) R.drawable.ic_check_circle else R.drawable.ic_circle_outline,
             ),
-            contentDescription = if (done) "Done" else "Not done",
+            contentDescription = if (done) s.done else s.notDone,
             tint = if (done) MaterialTheme.colorScheme.primary
             else MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size(24.dp),

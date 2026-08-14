@@ -42,7 +42,8 @@ import androidx.core.graphics.drawable.DrawableCompat
 import com.volume_plus_plus.app.R
 import com.volume_plus_plus.app.data.OverlayCustomizationPrefs
 import com.volume_plus_plus.app.data.OverlayPrefs
-import com.volume_plus_plus.app.data.ThemePrefs
+import com.volume_plus_plus.app.config.AppSettings
+import com.volume_plus_plus.app.i18n.Localization
 import com.volume_plus_plus.app.shizuku.ShizukuManager
 import com.volume_plus_plus.app.ui.theme.ThemeMode
 import kotlinx.coroutines.CoroutineScope
@@ -52,6 +53,10 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.roundToInt
+
+/** The current translation. A getter, so these Views pick up a language change on their next build. */
+private val strings get() = Localization.strings
+
 
 /**
  * Builds and manages the floating volume panel. The look comes entirely from the user-selected
@@ -112,7 +117,6 @@ class OverlayController(
     }
     private val prefs = OverlayPrefs(context)
     private val customizationPrefs = OverlayCustomizationPrefs(context)
-    private val themePrefs = ThemePrefs(context)
     private val handler = Handler(Looper.getMainLooper())
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
@@ -487,7 +491,7 @@ class OverlayController(
         // own colour overrides, so rebuild the style every pass.
         style = buildStyle()
         if (preview != null) { renderPreview(); return }
-        val sig = "${curSkin()}|${isDark()}|$expanded"
+        val sig = "${curSkin()}|${isDark()}|$expanded|${AppSettings.language.value.code}"
         // A fresh appearance (nothing on screen yet), or an explicit expand into the "Sound" sheet,
         // earns the slide-in entrance; a plain re-show from a repeated key press keeps the panel put.
         val entering = root == null || forceEntrance
@@ -1320,13 +1324,13 @@ class OverlayController(
         )
         val col = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
         col.addView(TextView(context).apply {
-            text = "Alarms only"
+            text = strings.panelAlarmsOnly
             setTextColor(style.textColor)
             textSize = 14f
             setTypeface(typeface, Typeface.BOLD)
         })
         col.addView(TextView(context).apply {
-            text = "Until you turn off Do Not Disturb"
+            text = strings.panelAlarmsOnlyDetail
             setTextColor(fade(style.textColor, 0.7f))
             textSize = 13f
         })
@@ -1338,7 +1342,7 @@ class OverlayController(
             gravity = Gravity.END
             setPadding(0, dp(6), 0, 0)
         }
-        actionRow.addView(textButton("TURN OFF NOW") { turnOffAlarmsOnly() })
+        actionRow.addView(textButton(strings.panelTurnOffNow) { turnOffAlarmsOnly() })
         box.addView(
             actionRow,
             LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT),
@@ -1566,9 +1570,9 @@ class OverlayController(
             (legacyVersion() == LegacyVersion.ANDROID_9 || legacyVersion() == LegacyVersion.ANDROID_10)
         val title = TextView(context).apply {
             text = when {
-                modern -> "Sound & vibration"
-                legacyVolume -> "Volume"
-                else -> "Sound"
+                modern -> strings.panelTitleSoundVibration
+                legacyVolume -> strings.panelTitleVolume
+                else -> strings.panelTitleSound
             }
             // The title is independently editable (titleColor), falling back to the body text colour.
             setTextColor(style.titleColor ?: style.textColor)
@@ -1586,8 +1590,8 @@ class OverlayController(
         val rows = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
         // The sheet rows use the outlined icon set (hollow-head note, hollow handset, outlined
         // bell) across Android 11–14; 9 and 10 hide the row icons entirely.
-        addStreamRow911(rows, R.drawable.ic_stream_media_outline, "Media volume", AudioManager.STREAM_MUSIC)
-        addStreamRow911(rows, R.drawable.ic_stream_call_outline, "Call volume", AudioManager.STREAM_VOICE_CALL)
+        addStreamRow911(rows, R.drawable.ic_stream_media_outline, strings.panelRowMedia, AudioManager.STREAM_MUSIC)
+        addStreamRow911(rows, R.drawable.ic_stream_call_outline, strings.panelRowCall, AudioManager.STREAM_VOICE_CALL)
         if (isModernSheet() && isAndroid14IconSet()) {
             // Android 14 draws Ring as the ringing handset; unlike Media it keeps that icon even
             // at zero — the stock sheet doesn't slash it, it just hands off to the disabled
@@ -1595,12 +1599,12 @@ class OverlayController(
             addStreamRow911(
                 rows,
                 R.drawable.ic_stream_ring_phone,
-                "Ring volume",
+                strings.panelRowRing,
                 AudioManager.STREAM_RING,
                 afterChange = { refreshExpandedNotificationAvailability() },
             )
             val (notifRow, notif) =
-                addStreamRow911(rows, R.drawable.ic_stream_notification, "Notification volume", AudioManager.STREAM_NOTIFICATION)
+                addStreamRow911(rows, R.drawable.ic_stream_notification, strings.panelRowNotification, AudioManager.STREAM_NOTIFICATION)
             val disabled = disabledNotificationRow911()
             notifSlider = notif
             notifSliderRow = notifRow
@@ -1610,9 +1614,9 @@ class OverlayController(
         } else {
             // The outlined bell is what both the Android 9–11 and Android 12 sheets actually drew
             // (AOSP's ic_volume_ringer is unchanged through 13).
-            addStreamRow911(rows, R.drawable.ic_stream_ring_outline, "Ring & notification volume", AudioManager.STREAM_RING, tieNotification = true)
+            addStreamRow911(rows, R.drawable.ic_stream_ring_outline, strings.panelRowRingNotification, AudioManager.STREAM_RING, tieNotification = true)
         }
-        addStreamRow911(rows, R.drawable.ic_stream_alarm, "Alarm volume", AudioManager.STREAM_ALARM)
+        addStreamRow911(rows, R.drawable.ic_stream_alarm, strings.panelRowAlarm, AudioManager.STREAM_ALARM)
 
         // Per-app sliders (Volume++'s reason for existing) are appended in the same native row style.
         val appsBox = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
@@ -1747,13 +1751,13 @@ class OverlayController(
         }
         if (isModernSheet()) {
             // Android 13–14: rounded (pill) buttons — SETTINGS outlined, DONE filled tonal.
-            footer.addView(outlinedPillButton("Settings") { openSoundSettings() })
+            footer.addView(outlinedPillButton(strings.panelSettings) { openSoundSettings() })
             footer.addView(View(context), LinearLayout.LayoutParams(0, dp(1), 1f))
-            footer.addView(filledPillButton("Done") { dismissSheet() })
+            footer.addView(filledPillButton(strings.panelDone) { dismissSheet() })
         } else {
-            footer.addView(textButton("SEE MORE") { openSoundSettings() })
+            footer.addView(textButton(strings.panelSeeMore) { openSoundSettings() })
             footer.addView(View(context), LinearLayout.LayoutParams(0, dp(1), 1f))
-            footer.addView(textButton("DONE") { dismissSheet() })
+            footer.addView(textButton(strings.panelDoneCaps) { dismissSheet() })
         }
         return footer
     }
@@ -1924,18 +1928,19 @@ class OverlayController(
      * (and hearing aids) report their actual device name.
      */
     private fun currentOutputLabel(): String {
-        if (isEditor()) return "This phone"
+        if (isEditor()) return strings.outputThisPhone
         val dev = runCatching {
             audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
                 .firstOrNull { it.type in EXTERNAL_OUTPUT_TYPES }
-        }.getOrNull() ?: return "This phone"
+        }.getOrNull() ?: return strings.outputThisPhone
         return when (dev.type) {
             AudioDeviceInfo.TYPE_WIRED_HEADSET,
-            AudioDeviceInfo.TYPE_WIRED_HEADPHONES -> "Wired headphones"
+            AudioDeviceInfo.TYPE_WIRED_HEADPHONES -> strings.outputWiredHeadphones
             AudioDeviceInfo.TYPE_USB_HEADSET,
             AudioDeviceInfo.TYPE_USB_DEVICE,
-            AudioDeviceInfo.TYPE_USB_ACCESSORY -> "USB headphones"
-            else -> dev.productName?.toString()?.trim()?.ifBlank { "Headphones" } ?: "Headphones"
+            AudioDeviceInfo.TYPE_USB_ACCESSORY -> strings.outputUsbHeadphones
+            else -> dev.productName?.toString()?.trim()?.ifBlank { strings.outputHeadphones }
+                ?: strings.outputHeadphones
         }
     }
 
@@ -1957,7 +1962,7 @@ class OverlayController(
         }.tagColor(EditableColor.OUTPUT_SURFACE)
         val col = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
         col.addView(TextView(context).apply {
-            text = "Audio will play on"
+            text = strings.panelAudioWillPlayOn
             setTextColor(style.iconTint)
             textSize = 12f
         })
@@ -2048,12 +2053,12 @@ class OverlayController(
         )
         val col = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
         col.addView(TextView(context).apply {
-            text = "Notification"
+            text = strings.panelRowNotificationShort
             setTextColor(fade(style.textColor, 0.6f))
             textSize = 15f
         })
         col.addView(TextView(context).apply {
-            text = "Unavailable because ring is muted"
+            text = strings.panelNotificationUnavailable
             setTextColor(fade(style.textColor, 0.45f))
             textSize = 11f
         })
@@ -2097,14 +2102,14 @@ class OverlayController(
         )
         val col = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
         col.addView(TextView(context).apply {
-            text = "Notification volume"
+            text = strings.panelRowNotification
             setTextColor(style.textColor)
             textSize = 14f
             // Same leading indent as the live rows' labels so the two states line up when swapped.
             setPadding(dp(9), 0, 0, 0)
         })
         col.addView(TextView(context).apply {
-            text = "Unavailable because ring is muted"
+            text = strings.panelNotificationUnavailable
             setTextColor(fade(style.textColor, 0.6f))
             textSize = 13f
             setPadding(dp(9), 0, 0, 0)
@@ -2251,7 +2256,7 @@ class OverlayController(
             LinearLayout.LayoutParams(dp(22), dp(22)).apply { marginEnd = dp(16) },
         )
         connect.addView(TextView(context).apply {
-            text = "Connect a device"
+            text = strings.panelConnectADevice
             // Default to the picker's content colour (shared with the OUTPUT_PICKER_TEXT swatch) so the
             // "Text" swatch and this label agree on their default.
             setTextColor(pickerColors.text ?: refContent)
@@ -2268,7 +2273,7 @@ class OverlayController(
         }
         // Re-tag the DONE pill with the picker's own identity (overriding filledPillButton's default
         // DONE_BG tag) so a tap selects the Media-output DONE, not the Expanded sheet's.
-        footer.addView(filledPillButton("DONE") { dismissPicker() }.tagColor(EditableColor.OUTPUT_DONE))
+        footer.addView(filledPillButton(strings.panelDoneCaps) { dismissPicker() }.tagColor(EditableColor.OUTPUT_DONE))
         card.addView(footer, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
         return card
     }
@@ -2879,7 +2884,7 @@ class OverlayController(
      * forcing Light/Dark re-skins the panel too. Re-read on every [show]/[render], so a change applies
      * to the next time the panel appears. Only [ThemeMode.SYSTEM] falls back to the device setting.
      */
-    private fun isDark(): Boolean = when (themePrefs.getThemeMode()) {
+    private fun isDark(): Boolean = when (AppSettings.themeMode.value) {
         ThemeMode.LIGHT -> false
         ThemeMode.DARK -> true
         ThemeMode.SYSTEM -> {

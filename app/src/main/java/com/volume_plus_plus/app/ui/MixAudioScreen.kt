@@ -58,6 +58,7 @@ import com.volume_plus_plus.app.data.AppInfo
 import com.volume_plus_plus.app.data.AppRepository
 import com.volume_plus_plus.app.data.MixPrefs
 import com.volume_plus_plus.app.data.OverlayPrefs
+import com.volume_plus_plus.app.i18n.strings
 import com.volume_plus_plus.app.shizuku.ShizukuManager
 import com.volume_plus_plus.app.ui.theme.successColor
 import kotlinx.coroutines.delay
@@ -89,6 +90,7 @@ fun MixAudioScreen(
     prefs: MixPrefs,
     onOpenOverlaySettings: () -> Unit,
 ) {
+    val s = strings()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val setup by ShizukuManager.setup.collectAsState()
@@ -134,10 +136,7 @@ fun MixAudioScreen(
                 .fillMaxSize()
                 .alpha(if (systemVolumePanel) DISABLED_ALPHA else 1f),
         ) {
-            ScreenHeader(
-                title = "Audio mixing",
-                subtitle = "Let two or more apps play sound at the same time",
-            )
+            ScreenHeader(title = s.mixingTitle, subtitle = s.mixingSubtitle)
 
             if (!setup.ready) {
                 SetupChecklist(setup = setup)
@@ -163,7 +162,7 @@ fun MixAudioScreen(
                 OutlinedTextField(
                     value = query,
                     onValueChange = { query = it },
-                    label = { Text("Search apps") },
+                    label = { Text(s.mixingSearchApps) },
                     singleLine = true,
                     shape = RoundedCornerShape(28.dp),
                     leadingIcon = {
@@ -192,7 +191,7 @@ fun MixAudioScreen(
                                         prefs.setEnabled(app.packageName, want)
                                         enabled = prefs.enabledPackages()
                                     } else {
-                                        snackbar.showSnackbar("Couldn't update ${app.label}")
+                                        snackbar.showSnackbar(s.mixingCouldntUpdate(app.label))
                                     }
                                 }
                             },
@@ -215,6 +214,7 @@ fun MixAudioScreen(
  */
 @Composable
 private fun SystemPanelBlocker(onOpenOverlaySettings: () -> Unit) {
+    val s = strings()
     Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
         Box(
             modifier = Modifier
@@ -238,19 +238,19 @@ private fun SystemPanelBlocker(onOpenOverlaySettings: () -> Unit) {
                 modifier = Modifier.padding(20.dp),
             ) {
                 Text(
-                    text = "Audio mixing is disabled",
+                    text = s.mixingDisabledTitle,
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSecondaryContainer,
                 )
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    text = "To use audio mixing, turn off \"Use system volume control\" in the Overlay settings.",
+                    text = s.mixingDisabledBody,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSecondaryContainer,
                     textAlign = TextAlign.Center,
                 )
                 Spacer(Modifier.height(16.dp))
-                Button(onClick = onOpenOverlaySettings) { Text("Go to Overlay settings") }
+                Button(onClick = onOpenOverlaySettings) { Text(s.mixingGoToOverlaySettings) }
             }
         }
     }
@@ -258,6 +258,7 @@ private fun SystemPanelBlocker(onOpenOverlaySettings: () -> Unit) {
 
 @Composable
 private fun WarningBanner(onDismiss: () -> Unit) {
+    val s = strings()
     Surface(
         color = MaterialTheme.colorScheme.errorContainer,
         shape = RoundedCornerShape(16.dp),
@@ -277,7 +278,7 @@ private fun WarningBanner(onDismiss: () -> Unit) {
             )
             Spacer(Modifier.width(12.dp))
             Text(
-                text = "With audio mixing on, some apps may freeze, replay ads, or lose their pause and/or resume controls. If an app misbehaves, turn its switch off to go back to normal.",
+                text = s.mixingWarning,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onErrorContainer,
                 modifier = Modifier.weight(1f),
@@ -285,7 +286,7 @@ private fun WarningBanner(onDismiss: () -> Unit) {
             IconButton(onClick = onDismiss) {
                 Icon(
                     painter = painterResource(R.drawable.ic_close),
-                    contentDescription = "Dismiss",
+                    contentDescription = s.dismiss,
                     tint = MaterialTheme.colorScheme.onErrorContainer,
                     modifier = Modifier.size(18.dp),
                 )
@@ -296,6 +297,7 @@ private fun WarningBanner(onDismiss: () -> Unit) {
 
 @Composable
 private fun HideSystemToggle(hideSystem: Boolean, onChange: (Boolean) -> Unit) {
+    val s = strings()
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.End,
@@ -304,7 +306,7 @@ private fun HideSystemToggle(hideSystem: Boolean, onChange: (Boolean) -> Unit) {
             .padding(start = 20.dp, end = 20.dp, top = 4.dp),
     ) {
         Text(
-            text = "Hide system apps",
+            text = s.mixingHideSystemApps,
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -373,6 +375,7 @@ private fun AppRow(
  */
 @Composable
 private fun SetupChecklist(setup: ShizukuManager.Setup) {
+    val s = strings()
     val context = LocalContext.current
     val openShizuku: () -> Unit = {
         val launch = context.packageManager.getLaunchIntentForPackage(ShizukuManager.PACKAGE_NAME)
@@ -394,7 +397,7 @@ private fun SetupChecklist(setup: ShizukuManager.Setup) {
 
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
-            text = "Audio mixing runs through Shizuku. Finish these three steps and it unlocks.",
+            text = s.setupIntroShizuku,
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
@@ -409,39 +412,35 @@ private fun SetupChecklist(setup: ShizukuManager.Setup) {
             Column(modifier = Modifier.padding(vertical = 6.dp)) {
                 SetupStep(
                     number = 1,
-                    title = if (installed) "Shizuku installed" else "Shizuku not installed",
-                    detail = "Volume++ needs it to change audio focus without root.",
+                    title = if (installed) s.setupShizukuInstalled else s.setupShizukuNotInstalled,
+                    detail = s.setupShizukuInstallDetail,
                     done = installed,
                     unlocked = true,
-                    actionLabel = "Install",
+                    actionLabel = s.install,
                     onAction = { openShizukuReleases(context) },
                 )
                 SetupStep(
                     number = 2,
-                    title = if (running) "Shizuku service running" else "Shizuku service not running",
-                    detail = if (setup.serverUnusable) {
-                        "A leftover Shizuku service from an older install is still running, which " +
-                            "is why Shizuku says it isn't. Stop it and start Shizuku again."
-                    } else {
-                        "Start it from inside Shizuku, over wireless debugging or ADB."
-                    },
+                    title = if (running) s.setupServiceRunning else s.setupServiceNotRunning,
+                    detail = if (setup.serverUnusable) s.setupServerUnusableDetail
+                    else s.setupServiceStartDetail,
                     done = running,
                     unlocked = installed,
-                    actionLabel = if (setup.serverUnusable) "Restart Shizuku" else "Set up now",
+                    actionLabel = if (setup.serverUnusable) s.setupRestartShizuku else s.setupSetUpNow,
                     onAction = openShizuku,
                 )
                 SetupStep(
                     number = 3,
-                    title = if (granted) "Access granted to Volume++" else "Grant access to Volume++",
+                    title = if (granted) s.setupAccessGranted else s.setupGrantAccessTitle,
                     detail = when {
-                        !running -> "Let Volume++ control other apps' audio focus."
-                        setup.connectFailed -> "Shizuku didn't start its privileged service."
-                        setup.connecting -> "Starting Shizuku's privileged service…"
-                        else -> "Let Volume++ control other apps' audio focus."
+                        !running -> s.setupAccessDetail
+                        setup.connectFailed -> s.setupConnectFailedDetail
+                        setup.connecting -> s.setupConnectingDetail
+                        else -> s.setupAccessDetail
                     },
                     done = granted,
                     unlocked = running,
-                    actionLabel = if (running && setup.connectFailed) "Try again" else "Grant access",
+                    actionLabel = if (running && setup.connectFailed) s.tryAgain else s.setupGrantAccess,
                     onAction = {
                         if (setup.connectFailed) {
                             ShizukuManager.retry()
@@ -505,7 +504,7 @@ private fun SetupStep(
         Spacer(Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = "$number. $title",
+                text = strings().setupStep(number, title),
                 style = MaterialTheme.typography.bodyLarge,
                 color = accent,
             )

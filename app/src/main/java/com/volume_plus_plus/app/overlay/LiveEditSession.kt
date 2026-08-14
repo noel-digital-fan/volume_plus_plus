@@ -20,7 +20,13 @@ import android.widget.HorizontalScrollView
 import android.widget.LinearLayout
 import android.widget.TextView
 import com.volume_plus_plus.app.data.OverlayCustomizationPrefs
+import com.volume_plus_plus.app.i18n.Localization
+import com.volume_plus_plus.app.i18n.shortLabel
 import kotlin.math.roundToInt
+
+/** The current translation. A getter, so these Views pick up a language change on their next build. */
+private val strings get() = Localization.strings
+
 
 /**
  * A WYSIWYG on-screen editor for one [OverlayVersion] + one [EditOrientation], in either
@@ -214,8 +220,8 @@ class LiveEditSession(
         })
 
         topRow.addView(View(appCtx), LinearLayout.LayoutParams(0, px(1), 1f)) // spacer
-        topRow.addView(textAction("Cancel", onBar) { cancel() })
-        topRow.addView(textAction("Save", accent, bold = true) { save() })
+        topRow.addView(textAction(strings.cancel, onBar) { cancel() })
+        topRow.addView(textAction(strings.save, accent, bold = true) { save() })
         panel.addView(topRow, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
 
         // Collapsible body: the component switch (Android 9+) plus the mode-specific controls.
@@ -307,7 +313,7 @@ class LiveEditSession(
      */
     private fun buildPositionControls(panel: LinearLayout) {
         val hint = TextView(appCtx).apply {
-            text = "Drag the panel, or type X / Y (dp)"
+            text = strings.liveEditPositionHint
             setTextColor(fade(onBar, 0.7f))
             textSize = 12f
             val p = px(4); setPadding(px(6), p, px(6), p)
@@ -331,7 +337,7 @@ class LiveEditSession(
         panel.addView(coordRow, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
 
         val resetRow = LinearLayout(appCtx).apply { orientation = LinearLayout.HORIZONTAL }
-        resetRow.addView(textAction("Reset position", onBar) { resetOffset() })
+        resetRow.addView(textAction(strings.liveEditResetPosition, onBar) { resetOffset() })
         panel.addView(resetRow)
     }
 
@@ -385,7 +391,7 @@ class LiveEditSession(
 
     private fun buildColorControls(panel: LinearLayout) {
         val hint = TextView(appCtx).apply {
-            text = "Tap the panel or a swatch, then dial or type a colour"
+            text = strings.liveEditColourHint
             setTextColor(fade(onBar, 0.7f))
             textSize = 12f
             setPadding(px(6), px(4), px(6), px(4))
@@ -449,7 +455,7 @@ class LiveEditSession(
         })
 
         val actions = LinearLayout(appCtx).apply { orientation = LinearLayout.HORIZONTAL }
-        actions.addView(textAction("Use default", onBar) { setColorValue(null) })
+        actions.addView(textAction(strings.liveEditUseDefault, onBar) { setColorValue(null) })
         panel.addView(actions)
 
         refreshPickerFromSelection()
@@ -597,11 +603,7 @@ class LiveEditSession(
         else version.components()
 
     /** The switch-chip label for a component. */
-    private fun componentLabel(component: PanelComponent): String = when (component) {
-        PanelComponent.MAIN -> "Main"
-        PanelComponent.EXPANDED -> "Expanded"
-        PanelComponent.OUTPUT -> "Media output"
-    }
+    private fun componentLabel(component: PanelComponent): String = component.shortLabel(strings)
 
     /** In COLOR mode, dock the editor bar to the bottom while editing the Media output (its picker is
      *  parked at the top, so the bar stays clear of it), and back to the top for other components.

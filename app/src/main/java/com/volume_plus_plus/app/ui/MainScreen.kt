@@ -24,19 +24,32 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import com.volume_plus_plus.app.R
+import com.volume_plus_plus.app.config.AppConfig
 import com.volume_plus_plus.app.data.MixPrefs
+import com.volume_plus_plus.app.i18n.Language
+import com.volume_plus_plus.app.i18n.Strings
+import com.volume_plus_plus.app.i18n.label
+import com.volume_plus_plus.app.i18n.strings
 import com.volume_plus_plus.app.ui.theme.ThemeMode
 
-private enum class Tab(val label: String, @DrawableRes val icon: Int) {
-    VOLUME("Volume", R.drawable.ic_nav_volume),
-    MIXING("Mixing", R.drawable.ic_nav_mixing),
-    OVERLAY("Overlay", R.drawable.ic_nav_overlay),
+private enum class Tab(@DrawableRes val icon: Int) {
+    VOLUME(R.drawable.ic_nav_volume),
+    MIXING(R.drawable.ic_nav_mixing),
+    OVERLAY(R.drawable.ic_nav_overlay),
+}
+
+private fun Tab.label(s: Strings): String = when (this) {
+    Tab.VOLUME -> s.tabVolume
+    Tab.MIXING -> s.tabMixing
+    Tab.OVERLAY -> s.tabOverlay
 }
 
 /**
  * App root: a bottom navigation bar switching between the [VolumePanelScreen] (default landing,
  * works with no privileges) and the Shizuku-backed [MixAudioScreen]. Owns the single shared
- * scaffold + snackbar host that both tabs draw into, plus the top bar's light/dark/auto toggle.
+ * scaffold + snackbar host that both tabs draw into, plus the top bar's language and theme pickers.
+ *
+ * [language] is the user's manual override, or null while the app follows the device's own language.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -44,7 +57,10 @@ fun MainScreen(
     prefs: MixPrefs,
     themeMode: ThemeMode,
     onThemeModeChange: (ThemeMode) -> Unit,
+    language: Language?,
+    onLanguageChange: (Language?) -> Unit,
 ) {
+    val s = strings()
     var tab by rememberSaveable { mutableStateOf(Tab.VOLUME) }
     val snackbar = remember { SnackbarHostState() }
     // One-shot request from the Mixing tab: send the user to Overlay and spotlight the switch that
@@ -57,8 +73,9 @@ fun MainScreen(
         snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             TopAppBar(
-                title = { Text("Volume++") },
+                title = { Text(AppConfig.APP_NAME) },
                 actions = {
+                    LanguageToggle(current = language, onSelect = onLanguageChange)
                     ThemeToggle(current = themeMode, onSelect = onThemeModeChange)
                 },
             )
@@ -72,10 +89,10 @@ fun MainScreen(
                         icon = {
                             Icon(
                                 painter = painterResource(entry.icon),
-                                contentDescription = entry.label,
+                                contentDescription = entry.label(s),
                             )
                         },
-                        label = { Text(entry.label) },
+                        label = { Text(entry.label(s)) },
                     )
                 }
             }
@@ -105,17 +122,18 @@ fun MainScreen(
  *  the active mode. Applying a choice re-themes the whole app immediately. */
 @Composable
 private fun ThemeToggle(current: ThemeMode, onSelect: (ThemeMode) -> Unit) {
+    val s = strings()
     var expanded by remember { mutableStateOf(false) }
     IconButton(onClick = { expanded = true }) {
         Icon(
             painter = painterResource(R.drawable.ic_theme),
-            contentDescription = "Theme",
+            contentDescription = s.theme,
         )
     }
     DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-        ThemeMode.entries.forEach { mode ->
+        AppConfig.SUPPORTED_THEMES.forEach { mode ->
             DropdownMenuItem(
-                text = { Text(mode.label) },
+                text = { Text(mode.label(s)) },
                 onClick = {
                     onSelect(mode)
                     expanded = false
@@ -124,7 +142,46 @@ private fun ThemeToggle(current: ThemeMode, onSelect: (ThemeMode) -> Unit) {
                     if (mode == current) {
                         Icon(
                             painter = painterResource(R.drawable.ic_check),
-                            contentDescription = "Selected",
+                            contentDescription = s.selected,
+                        )
+                    }
+                },
+            )
+        }
+    }
+}
+
+/**
+ * Top-bar action: the language picker. Leads with "System default" — the automatic behaviour, and
+ * where every install starts — then every language in [AppConfig.SUPPORTED_LANGUAGES] under its own
+ * endonym, so an entry is readable to the person looking for it whatever the app is showing now.
+ * Applying a choice re-renders the whole app immediately, overlay included.
+ */
+@Composable
+private fun LanguageToggle(current: Language?, onSelect: (Language?) -> Unit) {
+    val s = strings()
+    var expanded by remember { mutableStateOf(false) }
+    IconButton(onClick = { expanded = true }) {
+        Icon(
+            painter = painterResource(R.drawable.ic_language),
+            contentDescription = s.language,
+        )
+    }
+    DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+        // null = follow the device, listed first as the default.
+        val options: List<Language?> = listOf(null) + AppConfig.SUPPORTED_LANGUAGES
+        options.forEach { option ->
+            DropdownMenuItem(
+                text = { Text(option?.label() ?: s.languageSystem) },
+                onClick = {
+                    onSelect(option)
+                    expanded = false
+                },
+                trailingIcon = {
+                    if (option == current) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_check),
+                            contentDescription = s.selected,
                         )
                     }
                 },

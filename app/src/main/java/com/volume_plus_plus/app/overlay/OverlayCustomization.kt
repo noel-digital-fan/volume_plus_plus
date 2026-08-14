@@ -16,16 +16,16 @@ package com.volume_plus_plus.app.overlay
  * is the Android 15 media-output picker ("This phone") that layers over the expanded sheet — a
  * separate editing surface with its own colours, offered only for the Android 15 style.
  */
-enum class PanelComponent(val label: String) {
-    MAIN("Main panel"),
-    EXPANDED("Expanded panel"),
-    OUTPUT("Media output"),
+enum class PanelComponent {
+    MAIN,
+    EXPANDED,
+    OUTPUT,
 }
 
 /** Which orientation's position is being edited/applied. Position is per-orientation; colours aren't. */
-enum class EditOrientation(val label: String) {
-    PORTRAIT("Portrait"),
-    LANDSCAPE("Landscape"),
+enum class EditOrientation {
+    PORTRAIT,
+    LANDSCAPE,
 }
 
 /** A panel's position nudge from its default docked spot, in dp. +x = right, +y = down. */
@@ -107,43 +107,43 @@ data class VersionCustomization(
  * matter where the panel actually draws text / a secondary surface; [MEDIA_ICON] and [MODE_ICON] are
  * the Android 12–15 main panel's two in-fill icon overrides.
  */
-enum class EditableColor(val label: String) {
-    BACKGROUND("Background"),
-    PROGRESS("Slider / progress"),
-    TRACK("Slider track"),
-    ICON("Icons"),
-    ACCENT("Accent / buttons"),
-    TEXT("Text"),
+enum class EditableColor {
+    BACKGROUND,
+    PROGRESS,
+    TRACK,
+    ICON,
+    ACCENT,
+    TEXT,
     // The secondary surface: the Android 9–11 tune/expand button, the Material You DONE pill, and the
     // Android 15 output/connect cards all sit on this.
-    SECONDARY("Secondary surface"),
+    SECONDARY,
     // The music note that rides on the media slider (Android 12–15 main panel).
-    MEDIA_ICON("Media note icon"),
+    MEDIA_ICON,
     // The icon of the currently-selected ringer/volume mode (Android 12–15 main panel).
-    MODE_ICON("Active mode icon"),
+    MODE_ICON,
     // The Android 12–14 main panel's three-dot overflow button (its own colour, not the accent).
-    OVERFLOW("Three-dot button"),
+    OVERFLOW,
     // The trailing volume dot on each Android 15 filled-pill row / the output-picker pill.
-    DOT("Volume dot"),
+    DOT,
     // The Android 15 "Audio will play on" output card surface (separate from the DONE pill).
-    OUTPUT_SURFACE("Output card"),
+    OUTPUT_SURFACE,
     // The DONE pill, split into its fill and its text so each is editable independently.
-    DONE_BG("Done button"),
-    DONE_TEXT("Done text"),
+    DONE_BG,
+    DONE_TEXT,
     // The Android 9–14 expanded sheet's Volume/Sound title (its own colour, not the body text).
-    TITLE("Title"),
+    TITLE,
     // The Android 15 "Media output" picker's own, exclusive palette. Each aliases the OUTPUT
     // component's PanelColors field shown in the comment, so nothing here is shared with the Expanded
     // sheet's swatches even though the underlying storage fields are reused per-component.
-    OUTPUT_CARD("Card background"),        // -> container
-    OUTPUT_SLIDER("Slider fill"),          // -> fill
-    OUTPUT_SLIDER_TRACK("Slider track"),   // -> track
-    OUTPUT_PICKER_ICON("Icon"),            // -> icon
-    OUTPUT_PICKER_TEXT("Text"),            // -> text
-    OUTPUT_PICKER_DOT("Volume dot"),       // -> dot
-    OUTPUT_CONNECT("Connect surface"),     // -> secondary
-    OUTPUT_DONE("Done button"),            // -> doneBg
-    OUTPUT_DONE_TEXT("Done text"),         // -> doneText
+    OUTPUT_CARD,          // -> container
+    OUTPUT_SLIDER,        // -> fill
+    OUTPUT_SLIDER_TRACK,  // -> track
+    OUTPUT_PICKER_ICON,   // -> icon
+    OUTPUT_PICKER_TEXT,   // -> text
+    OUTPUT_PICKER_DOT,    // -> dot
+    OUTPUT_CONNECT,       // -> secondary
+    OUTPUT_DONE,          // -> doneBg
+    OUTPUT_DONE_TEXT,     // -> doneText
 }
 
 /** The Android 15 "Media output" picker's reference-blue palette (matches the OS art). Shared by the

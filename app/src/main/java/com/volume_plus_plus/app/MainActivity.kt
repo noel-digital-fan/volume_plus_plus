@@ -7,14 +7,14 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.volume_plus_plus.app.config.AppSettings
 import com.volume_plus_plus.app.data.MixPrefs
-import com.volume_plus_plus.app.data.ThemePrefs
+import com.volume_plus_plus.app.i18n.LocalStrings
+import com.volume_plus_plus.app.i18n.rememberStrings
 import com.volume_plus_plus.app.shizuku.ShizukuManager
 import com.volume_plus_plus.app.ui.MainScreen
 import com.volume_plus_plus.app.ui.theme.ThemeMode
@@ -28,9 +28,11 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         ShizukuManager.init(this)
         setContent {
-            val context = LocalContext.current
-            val themePrefs = remember { ThemePrefs(context) }
-            var themeMode by remember { mutableStateOf(themePrefs.getThemeMode()) }
+            // Both settings live in AppSettings rather than in composition state: the overlay and the
+            // accessibility service read the same values, and they have no route back into the UI.
+            val themeMode by AppSettings.themeMode.collectAsStateWithLifecycle()
+            val language by AppSettings.languageOverride.collectAsStateWithLifecycle()
+            val strings = rememberStrings()
 
             val darkTheme = when (themeMode) {
                 ThemeMode.LIGHT -> false
@@ -49,15 +51,16 @@ class MainActivity : ComponentActivity() {
                 onDispose {}
             }
 
-            VolumeTheme(themeMode = themeMode) {
-                MainScreen(
-                    prefs = prefs,
-                    themeMode = themeMode,
-                    onThemeModeChange = { mode ->
-                        themeMode = mode
-                        themePrefs.setThemeMode(mode)
-                    },
-                )
+            CompositionLocalProvider(LocalStrings provides strings) {
+                VolumeTheme(themeMode = themeMode) {
+                    MainScreen(
+                        prefs = prefs,
+                        themeMode = themeMode,
+                        onThemeModeChange = AppSettings::setThemeMode,
+                        language = language,
+                        onLanguageChange = AppSettings::setLanguage,
+                    )
+                }
             }
         }
     }

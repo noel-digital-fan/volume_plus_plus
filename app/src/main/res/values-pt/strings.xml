@@ -1,0 +1,5 @@
+<!-- Português. Only the OS-rendered strings live here; the rest is in i18n/StringsPt.kt. -->
+<resources>
+    <string name="volume_key_service_label">Painel do Volume++</string>
+    <string name="volume_key_service_description">Permite que o Volume++ mostre seu próprio painel de volume, com um controle por app, ao pressionar as teclas de volume, em vez do painel do sistema.</string>
+</resources>

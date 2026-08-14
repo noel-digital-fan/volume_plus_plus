@@ -21,6 +21,7 @@ import android.view.animation.AccelerateDecelerateInterpolator
 import android.view.animation.DecelerateInterpolator
 import androidx.core.content.ContextCompat
 import com.volume_plus_plus.app.R
+import com.volume_plus_plus.app.i18n.Localization
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -365,7 +366,9 @@ class VolumeSlider(
         val baseline = cy - (pillLabelPaint.descent() + pillLabelPaint.ascent()) / 2f
         val leadLeft = dp(14f)
         pillLabelPaint.textAlign = Paint.Align.CENTER
-        val leadColW = maxOf(iconSize, pillLabelPaint.measureText("100%"))
+        // Measured against the localised full-scale label, so the reserved column is wide enough in
+        // whatever language is active rather than only in English.
+        val leadColW = maxOf(iconSize, pillLabelPaint.measureText(Localization.strings.percent(100)))
         // Keep the icon pinned to the pill's left content edge while still reserving the wider
         // percentage column so the trailing label never shifts during the icon/percent crossfade.
         val leadCx = leadLeft + iconSize / 2f
@@ -387,7 +390,10 @@ class VolumeSlider(
             if (dragProgress > 0f) {
                 pillLabelPaint.color = if (overFillLead) onFill else onTrack
                 pillLabelPaint.alpha = (dragProgress * 255).roundToInt()
-                canvas.drawText("${(level * 100).roundToInt()}%", leadCx, percentBaseline, pillLabelPaint)
+                canvas.drawText(
+                    Localization.strings.percent((level * 100).roundToInt()),
+                    leadCx, percentBaseline, pillLabelPaint,
+                )
                 pillLabelPaint.alpha = 255
             }
         }

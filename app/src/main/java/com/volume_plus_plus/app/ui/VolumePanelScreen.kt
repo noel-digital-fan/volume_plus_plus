@@ -44,21 +44,34 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.volume_plus_plus.app.R
+import com.volume_plus_plus.app.i18n.Strings
+import com.volume_plus_plus.app.i18n.strings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
-/** A standard system audio stream we expose as a slider. */
-private data class StreamInfo(val type: Int, val label: String, @DrawableRes val icon: Int)
+/**
+ * A standard system audio stream we expose as a slider. [label] resolves against the current
+ * translation rather than being fixed at declaration, so the list can stay a top-level constant.
+ */
+private data class StreamInfo(
+    val type: Int,
+    val label: (Strings) -> String,
+    @DrawableRes val icon: Int,
+)
 
 // STREAM_SYSTEM (UI/touch-sound volume) is deliberately omitted — it's rarely meaningful to end
 // users and just adds clutter next to the streams people actually care about.
 private val STREAMS = listOf(
-    StreamInfo(AudioManager.STREAM_MUSIC, "Media", R.drawable.ic_stream_media),
-    StreamInfo(AudioManager.STREAM_VOICE_CALL, "Call", R.drawable.ic_stream_call),
-    StreamInfo(AudioManager.STREAM_RING, "Ring", R.drawable.ic_stream_ring_phone),
-    StreamInfo(AudioManager.STREAM_NOTIFICATION, "Notification", R.drawable.ic_stream_notification),
-    StreamInfo(AudioManager.STREAM_ALARM, "Alarm", R.drawable.ic_stream_alarm),
+    StreamInfo(AudioManager.STREAM_MUSIC, { it.streamMedia }, R.drawable.ic_stream_media),
+    StreamInfo(AudioManager.STREAM_VOICE_CALL, { it.streamCall }, R.drawable.ic_stream_call),
+    StreamInfo(AudioManager.STREAM_RING, { it.streamRing }, R.drawable.ic_stream_ring_phone),
+    StreamInfo(
+        AudioManager.STREAM_NOTIFICATION,
+        { it.streamNotification },
+        R.drawable.ic_stream_notification,
+    ),
+    StreamInfo(AudioManager.STREAM_ALARM, { it.streamAlarm }, R.drawable.ic_stream_alarm),
 )
 
 // Broadcast the system sends whenever any stream's volume changes (e.g. hardware keys). Undocumented
@@ -71,6 +84,7 @@ private const val VOLUME_CHANGED_ACTION = "android.media.VOLUME_CHANGED_ACTION"
  */
 @Composable
 fun VolumePanelScreen(contentPadding: PaddingValues, snackbar: SnackbarHostState) {
+    val s = strings()
     val context = LocalContext.current
     val audio = remember { context.getSystemService(Context.AUDIO_SERVICE) as AudioManager }
     val scope = rememberCoroutineScope()
@@ -108,7 +122,7 @@ fun VolumePanelScreen(contentPadding: PaddingValues, snackbar: SnackbarHostState
             .padding(contentPadding)
             .verticalScroll(rememberScrollState()),
     ) {
-        ScreenHeader(title = "Volume", subtitle = "Control each sound channel")
+        ScreenHeader(title = s.volumeTitle, subtitle = s.volumeSubtitle)
 
         Column(
             verticalArrangement = Arrangement.spacedBy(20.dp),
@@ -122,7 +136,7 @@ fun VolumePanelScreen(contentPadding: PaddingValues, snackbar: SnackbarHostState
                     audio = audio,
                     refreshKey = refreshKey,
                     enabled = !(stream.type == AudioManager.STREAM_NOTIFICATION && ringMuted),
-                    onDenied = { showNotificationPolicyPrompt(scope, snackbar, context) },
+                    onDenied = { showNotificationPolicyPrompt(scope, snackbar, context, s) },
                 )
             }
         }
@@ -150,6 +164,8 @@ private fun StreamRow(
         value = audio.getStreamVolume(stream.type).toFloat()
     }
 
+    val s = strings()
+    val label = stream.label(s)
     val range = (max - min).coerceAtLeast(1)
     val percent = (((value - min) / range) * 100f).roundToInt().coerceIn(0, 100)
 
@@ -171,7 +187,7 @@ private fun StreamRow(
     ) {
         Icon(
             painter = painterResource(icon),
-            contentDescription = stream.label,
+            contentDescription = label,
             tint = contentTint,
             modifier = Modifier.size(22.dp),
         )
@@ -179,13 +195,13 @@ private fun StreamRow(
         Column(Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = stream.label,
+                    text = label,
                     style = MaterialTheme.typography.titleSmall,
                     color = if (enabled) MaterialTheme.colorScheme.onSurface else contentTint,
                     modifier = Modifier.weight(1f),
                 )
                 Text(
-                    text = if (enabled) "$percent%" else "Off",
+                    text = if (enabled) s.percent(percent) else s.off,
                     style = MaterialTheme.typography.labelLarge,
                     color = contentTint,
                     textAlign = TextAlign.End,
@@ -218,11 +234,12 @@ private fun showNotificationPolicyPrompt(
     scope: CoroutineScope,
     snackbar: SnackbarHostState,
     context: Context,
+    s: Strings,
 ) {
     scope.launch {
         val result = snackbar.showSnackbar(
-            message = "Do Not Disturb is blocking this. Grant access to change it.",
-            actionLabel = "Settings",
+            message = s.dndBlocking,
+            actionLabel = s.settings,
         )
         if (result == SnackbarResult.ActionPerformed) {
             val intent = Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)

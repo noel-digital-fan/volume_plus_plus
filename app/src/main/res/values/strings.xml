@@ -1,5 +1,15 @@
+<!--
+    The ONLY user-facing strings that live in Android resources. Everything else is in
+    app/src/main/java/com/volume_plus_plus/app/i18n/Strings.kt — see docs/TRANSLATING.md.
+
+    These three are different because *Android* renders them, not us: the launcher draws app_name,
+    and the accessibility-service label and description are shown by system Settings, which reads
+    them straight out of our APK. There is no way to hand the OS an in-app override, so they are
+    translated the platform's way — values-es/, values-pt/, values-fr/ — and follow the *device*
+    language rather than the app's language setting.
+-->
 <resources>
-    <string name="app_name">Volume++</string>
+    <string name="app_name" translatable="false">Volume++</string>
     <string name="volume_key_service_label">Volume++ overlay</string>
     <string name="volume_key_service_description">Lets Volume++ show its own volume panel with per-app sliders when you press the volume keys, replacing the system panel.</string>
 </resources>

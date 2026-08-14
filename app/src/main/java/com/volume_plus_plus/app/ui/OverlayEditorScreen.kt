@@ -25,6 +25,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.volume_plus_plus.app.R
+import com.volume_plus_plus.app.i18n.label
+import com.volume_plus_plus.app.i18n.strings
 import com.volume_plus_plus.app.overlay.EditOrientation
 import com.volume_plus_plus.app.overlay.OverlayVersion
 
@@ -44,6 +46,7 @@ fun OverlayEditHub(
     onEditColors: () -> Unit,
     onEditPosition: (EditOrientation) -> Unit,
 ) {
+    val s = strings()
     var chooseOrientation by remember { mutableStateOf(false) }
 
     Column(
@@ -52,11 +55,10 @@ fun OverlayEditHub(
             .padding(contentPadding)
             .verticalScroll(rememberScrollState()),
     ) {
-        EditorHeader(title = "Edit ${version.label}", onBack = onBack)
+        EditorHeader(title = s.editStyleTitle(version.label), onBack = onBack)
 
         Text(
-            text = "Customise this style on its own. Position and colours are edited separately, and " +
-                "only ${version.label} is changed.",
+            text = s.editStyleIntro(version.label),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
@@ -67,11 +69,10 @@ fun OverlayEditHub(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp, vertical = 6.dp),
-        ) { Text("Edit position") }
+        ) { Text(s.editPosition) }
 
         Text(
-            text = "The real panel opens on top of your screen — drag it exactly where you want, then " +
-                "Save or Cancel from the floating bar.",
+            text = s.editPositionHint,
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 2.dp),
@@ -82,11 +83,10 @@ fun OverlayEditHub(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp, vertical = 6.dp),
-        ) { Text("Edit colours") }
+        ) { Text(s.editColours) }
 
         Text(
-            text = "The panel opens on top of your screen — tap a part of it (or a swatch), dial the " +
-                "colour, then Save or Cancel.",
+            text = s.editColoursHint,
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 2.dp),
@@ -107,18 +107,20 @@ fun OverlayEditHub(
 /** Asks which layout to position — portrait or landscape — before opening the position editor. */
 @Composable
 private fun OrientationDialog(onDismiss: () -> Unit, onPick: (EditOrientation) -> Unit) {
+    val s = strings()
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Which layout?") },
-        text = {
-            Text("Portrait and landscape are positioned separately. The screen rotates to the layout " +
-                "you pick so you position the panel exactly as it'll appear.")
-        },
+        title = { Text(s.editWhichLayout) },
+        text = { Text(s.editWhichLayoutBody) },
         confirmButton = {
-            TextButton(onClick = { onPick(EditOrientation.LANDSCAPE) }) { Text("Landscape") }
+            TextButton(onClick = { onPick(EditOrientation.LANDSCAPE) }) {
+                Text(EditOrientation.LANDSCAPE.label(s))
+            }
         },
         dismissButton = {
-            TextButton(onClick = { onPick(EditOrientation.PORTRAIT) }) { Text("Portrait") }
+            TextButton(onClick = { onPick(EditOrientation.PORTRAIT) }) {
+                Text(EditOrientation.PORTRAIT.label(s))
+            }
         },
     )
 }
@@ -136,7 +138,7 @@ private fun EditorHeader(
             .padding(start = 8.dp, end = 12.dp, top = 8.dp),
     ) {
         IconButton(onClick = onBack) {
-            Icon(painterResource(R.drawable.ic_close), contentDescription = "Back")
+            Icon(painterResource(R.drawable.ic_close), contentDescription = strings().back)
         }
         Column(modifier = Modifier.weight(1f)) {
             Text(text = title, style = MaterialTheme.typography.titleLarge)

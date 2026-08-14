@@ -15,6 +15,7 @@ android {
         applicationId = "com.volume_plus_plus.app"
         minSdk = 24
         targetSdk = 36
+        // The app's one version. Bump it here; app code reads it back through AppConfig.
         versionCode = 2
         versionName = "1.1.0"
 
@@ -35,6 +36,10 @@ android {
     buildFeatures {
         compose = true
         aidl = true
+        // Generates BuildConfig, which is how AppConfig re-exports versionName/versionCode below.
+        // Keeping the numbers here (rather than in AppConfig itself) means the manifest, the APK and
+        // AppConfig can never disagree about what version this is.
+        buildConfig = true
     }
 }
 
