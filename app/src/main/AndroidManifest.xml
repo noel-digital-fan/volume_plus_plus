@@ -13,6 +13,12 @@
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <!-- Short haptic tick when the user selects the vibrate ringer mode. -->
     <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- The screen eyedropper reads a single frame of the display through MediaProjection, which
+         the platform only allows from a foreground service of the matching type. The notification
+         that service posts is also the user's control surface while they browse for a colour. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
         android:name=".VolumeApp"
@@ -46,6 +52,23 @@
             android:exported="true"
             android:permission="android.permission.INTERACT_ACROSS_USERS_FULL"
             tools:ignore="ExportedContentProvider" />
+
+        <!-- Collapses the notification shade before the eyedropper grabs its frame. A notification
+             action that starts a service leaves the shade wide open, so the capture would be of the
+             shade rather than of whatever the user was actually looking at; starting an activity is
+             what closes it. This one shows nothing and finishes immediately. -->
+        <activity
+            android:name=".ui.PickTrampolineActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
+        <service
+            android:name=".service.ColorPickService"
+            android:exported="false"
+            android:foregroundServiceType="mediaProjection" />
 
         <!-- Note: .service.RootUserService is deliberately NOT declared here. libsu's RootService
              is a ContextWrapper that only imitates a Service — the framework never instantiates it,

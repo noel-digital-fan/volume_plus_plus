@@ -1,11 +1,16 @@
 package com.volume_plus_plus.app
 
+import android.Manifest
+import android.content.Context
 import android.graphics.Color
+import android.media.projection.MediaProjectionManager
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
@@ -15,14 +20,35 @@ import com.volume_plus_plus.app.config.AppSettings
 import com.volume_plus_plus.app.data.MixPrefs
 import com.volume_plus_plus.app.i18n.LocalStrings
 import com.volume_plus_plus.app.i18n.rememberStrings
+import com.volume_plus_plus.app.overlay.ScreenColorPicker
 import com.volume_plus_plus.app.privileged.PrivilegedManager
 import com.volume_plus_plus.app.ui.MainScreen
 import com.volume_plus_plus.app.ui.theme.ThemeMode
 import com.volume_plus_plus.app.ui.theme.VolumeTheme
 
-class MainActivity : ComponentActivity() {
+class MainActivity : ComponentActivity(), ScreenColorPicker.Host {
 
     private val prefs by lazy { MixPrefs(this) }
+
+    /**
+     * Screen-capture consent for the colour editor's eyedropper. Registered as a field so it is in
+     * place before the activity reaches STARTED — `registerForActivityResult` throws if it is called
+     * any later. The picker itself lives in a WindowManager overlay with no activity of its own, so
+     * this is how it reaches the system dialog.
+     */
+    private val captureConsent = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) { result -> ScreenColorPicker.onConsentResult(result.resultCode, result.data) }
+
+    /**
+     * The eyedropper's foreground service posts the notification the user drives the pick from, so
+     * on Android 13+ it asks for notification access first. A refusal doesn't block the feature —
+     * the picker also puts a floating control on screen — so the result is simply ignored and the
+     * consent dialog follows either way.
+     */
+    private val notificationConsent = registerForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { launchCaptureConsent() }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -63,6 +89,25 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun requestScreenCapture() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) !=
+            android.content.pm.PackageManager.PERMISSION_GRANTED
+        ) {
+            notificationConsent.launch(Manifest.permission.POST_NOTIFICATIONS)
+            return
+        }
+        launchCaptureConsent()
+    }
+
+    private fun launchCaptureConsent() {
+        val manager = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
+        val launched = runCatching {
+            captureConsent.launch(manager.createScreenCaptureIntent())
+        }.isSuccess
+        if (!launched) ScreenColorPicker.cancel()
     }
 
     override fun onResume() {

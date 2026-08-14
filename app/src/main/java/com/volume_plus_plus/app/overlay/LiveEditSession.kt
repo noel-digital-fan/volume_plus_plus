@@ -3,22 +3,30 @@ package com.volume_plus_plus.app.overlay
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
+import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.graphics.Color
 import android.graphics.PixelFormat
 import android.graphics.Rect
 import android.graphics.drawable.GradientDrawable
 import android.os.Build
+import android.text.Editable
+import android.text.InputFilter
 import android.text.InputType
+import android.text.TextWatcher
 import android.view.Gravity
+import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
+import android.view.ViewGroup
 import android.view.WindowManager
 import android.view.inputmethod.EditorInfo
+import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
 import android.widget.HorizontalScrollView
 import android.widget.LinearLayout
 import android.widget.TextView
+import com.volume_plus_plus.app.MainActivity
 import com.volume_plus_plus.app.data.OverlayCustomizationPrefs
 import com.volume_plus_plus.app.i18n.Localization
 import com.volume_plus_plus.app.i18n.shortLabel
@@ -100,7 +108,32 @@ class LiveEditSession(
     private var hexField: EditText? = null
     /** Guards the wheel/hex from echoing each other's programmatic updates back as fresh edits. */
     private var syncingColor = false
+    /** Set while the user is part-way through typing a hex value, so a wheel drag or a swatch tap
+     *  doesn't overwrite what they're in the middle of entering. Cleared on commit and whenever a
+     *  different element is selected. */
+    private var userTypingHex = false
     private var swatchRow: LinearLayout? = null
+
+    /**
+     * Keeps the hex field to characters [parseHex] can read — and, just as importantly, accepts them
+     * exactly as typed.
+     *
+     * Handing an [InputFilter] a *different* string back (upper-casing what was typed, say) throws
+     * away the IME's composing region, and keyboards respond to that by swallowing characters
+     * seemingly at random. So anything already valid is passed straight through with null, in
+     * whatever case it arrived; only genuine non-hex characters are dropped. Case is normalised
+     * later by [syncHexField], on commit, when nothing is mid-composition.
+     */
+    private val hexDigitFilter = InputFilter { source, start, end, _, _, _ ->
+        if ((start until end).all { source[it].isHexDigit() }) null
+        else (start until end).filter { source[it].isHexDigit() }
+            .map { source[it] }
+            .joinToString("")
+    }
+
+    /** Both cases: [parseHex] reads either, and rejecting lower case here is what broke typing. */
+    private fun Char.isHexDigit(): Boolean =
+        this in '0'..'9' || this in 'a'..'f' || this in 'A'..'F'
 
     // POSITION-mode state: the manual X/Y coordinate fields (dp). Kept in sync with dragging.
     private var xField: EditText? = null
@@ -156,8 +189,25 @@ class LiveEditSession(
     private fun showControlBar() {
         val barBg = if (dark) Color.parseColor("#2A2A2E") else Color.parseColor("#FFFFFF")
 
-        val panel = LinearLayout(appCtx).apply {
+        // A focusable overlay window swallows BACK, so the bar has to say what BACK means. Left
+        // unhandled it would be a dead key here, and before the bar was focusable it was worse:
+        // BACK fell through to the activity underneath and popped the editor screen out from under
+        // a session that carried right on running.
+        val panel = object : LinearLayout(appCtx) {
+            override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+                if (event.keyCode == KeyEvent.KEYCODE_BACK && event.action == KeyEvent.ACTION_UP) {
+                    // While the keyboard is up, BACK belongs to the keyboard.
+                    if (hexField?.hasFocus() == true) dismissHexKeyboard() else cancel()
+                    return true
+                }
+                return super.dispatchKeyEvent(event)
+            }
+        }.apply {
             orientation = LinearLayout.VERTICAL
+            // So clearFocus() on the hex field lands somewhere instead of bouncing straight back to
+            // the only focusable child in the bar.
+            isFocusableInTouchMode = true
+            descendantFocusability = ViewGroup.FOCUS_AFTER_DESCENDANTS
             background = GradientDrawable().apply {
                 cornerRadius = px(22).toFloat()
                 setColor(barBg)
@@ -277,19 +327,18 @@ class LiveEditSession(
             px(300),
             WindowManager.LayoutParams.WRAP_CONTENT,
             overlayType(),
-            // The position editor's coordinate fields need to receive typed input, so its bar must be
-            // focusable (unlike the colour bar, which only has taps/sliders and stays non-focusable so
-            // keys pass through). NOT_TOUCH_MODAL keeps touches *outside* the bar falling through to
-            // the panel behind it, so the panel is still draggable while the bar can take keyboard
-            // input; ADJUST_RESIZE + the IME flag let the soft keyboard open over it.
-            if (mode == LiveEditMode.POSITION)
-                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
-            else WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+            // Both editors carry text fields that have to receive typed input — X/Y coordinates in
+            // POSITION mode, the hex value in COLOUR mode — so neither bar can be NOT_FOCUSABLE: a
+            // non-focusable window never takes input focus, so the IME never opens and the field is
+            // read-only in practice. NOT_TOUCH_MODAL keeps touches *outside* the bar falling through
+            // to the panel behind it, so the panel is still draggable and tap-to-pick still works
+            // while the bar can take keyboard input; ADJUST_PAN lets the soft keyboard open over it.
+            // Volume keys are unaffected: VolumeKeyService is an AccessibilityService, so it sees
+            // them before any focused window does.
+            WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
             PixelFormat.TRANSLUCENT,
         ).apply {
-            if (mode == LiveEditMode.POSITION) {
-                softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_PAN
-            }
+            softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_PAN
             gravity = Gravity.TOP or Gravity.START
             x = px(16)
             // The colour bar carries the tall HSV wheel, so anchor it near the top where it always
@@ -436,7 +485,14 @@ class LiveEditSession(
             setPadding(px(6), 0, px(2), 0)
         })
         val hex = EditText(appCtx).apply {
-            inputType = InputType.TYPE_CLASS_TEXT
+            // NO_SUGGESTIONS keeps the IME from offering autocorrect on what is never a word, and
+            // CAP_CHARACTERS asks it to show A–F the way the field displays them. The filters keep
+            // the content to at most eight hex digits, so anything the field can hold is something
+            // [parseHex] can read.
+            inputType = InputType.TYPE_CLASS_TEXT or
+                InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS or
+                InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS
+            filters = arrayOf(InputFilter.LengthFilter(8), hexDigitFilter)
             maxLines = 1
             setTextColor(onBar)
             setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 14f)
@@ -446,7 +502,30 @@ class LiveEditSession(
             setOnEditorActionListener { _, actionId, _ ->
                 if (actionId == EditorInfo.IME_ACTION_DONE) { commitHexField(); true } else false
             }
-            setOnFocusChangeListener { _, hasFocus -> if (!hasFocus) commitHexField() }
+            setOnFocusChangeListener { _, hasFocus ->
+                if (hasFocus) {
+                    // Select what's already there, so typing replaces the value instead of being
+                    // inserted into it. Without this the field arrives holding six characters
+                    // against an eight-character cap, so a user who taps in and starts typing gets
+                    // two characters accepted and then silently blocked. Posted, because the tap
+                    // that gave focus positions the caret immediately afterwards.
+                    post { selectAll() }
+                } else {
+                    commitHexField()
+                }
+            }
+            // Apply as the user types rather than waiting for Done: an overlay window's IME action
+            // and focus-loss callbacks are both easy for the user to never trigger (tapping away
+            // lands on the panel, not on another field), so neither is a dependable commit point.
+            addTextChangedListener(object : TextWatcher {
+                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
+                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
+                override fun afterTextChanged(s: Editable?) {
+                    if (syncingColor) return
+                    userTypingHex = true
+                    parseHex(s?.toString()?.trim()?.removePrefix("#").orEmpty())?.let { applyHexLive(it) }
+                }
+            })
         }
         hexField = hex
         hexRow.addView(hex, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
@@ -456,6 +535,7 @@ class LiveEditSession(
 
         val actions = LinearLayout(appCtx).apply { orientation = LinearLayout.HORIZONTAL }
         actions.addView(textAction(strings.liveEditUseDefault, onBar) { setColorValue(null) })
+        actions.addView(textAction(strings.liveEditPickFromScreen, accent) { startEyedropper() })
         panel.addView(actions)
 
         refreshPickerFromSelection()
@@ -464,14 +544,28 @@ class LiveEditSession(
     /** The wheel emitted a new colour — apply it and mirror it into the hex field. */
     private fun onWheelColorChanged(argb: Int) {
         if (syncingColor) return
+        // Dialling the wheel is an unambiguous "I've finished with the text field": without this the
+        // mid-type hold would still be set from an earlier tap on it, and the hex would sit frozen
+        // while the wheel moved — the very thing the hold exists to avoid in the other direction.
+        userTypingHex = false
+        dismissHexKeyboard(commit = false)
         setColorValue(argb)
         syncHexField(argb)
     }
 
-    /** Parse the hex field (#RGB / #RRGGBB / #AARRGGBB, with or without '#') and apply it. Invalid
-     *  input is ignored and the field is snapped back to the current colour. */
+    /** Apply a colour the user typed to the panel and the wheel, leaving the field itself alone —
+     *  it already holds exactly what they entered, and rewriting it would fight the caret. */
+    private fun applyHexLive(argb: Int) {
+        setColorValue(argb)
+        colorWheel?.let { syncingColor = true; it.setColor(argb); syncingColor = false }
+    }
+
+    /** Finish an edit of the hex field (Done, or focus moving away): apply the value and hand the
+     *  field back to [syncHexField]. Input too short to parse — or garbage — snaps back to the
+     *  colour actually in force, so the field never sits on something that isn't true. */
     private fun commitHexField() {
         if (syncingColor) return
+        userTypingHex = false
         val raw = hexField?.text?.toString()?.trim()?.removePrefix("#") ?: return
         val parsed = parseHex(raw)
         if (parsed == null) {
@@ -479,8 +573,7 @@ class LiveEditSession(
             syncHexField(colorOf(selectedColor))
             return
         }
-        setColorValue(parsed)
-        colorWheel?.let { syncingColor = true; it.setColor(parsed); syncingColor = false }
+        applyHexLive(parsed)
         syncHexField(parsed)
     }
 
@@ -495,15 +588,27 @@ class LiveEditSession(
         return if (h.length == 6) (0xFF000000.toInt() or value.toInt()) else value.toInt()
     }
 
-    /** Show [argb] in the hex field as #RRGGBB (or #AARRGGBB when it carries non-opaque alpha). */
+    /**
+     * Show [argb] in the hex field as #RRGGBB (or #AARRGGBB when it carries non-opaque alpha).
+     *
+     * Held off only while the user is actually mid-edit ([userTypingHex]) — never on view focus,
+     * which an [EditText] keeps for as long as nothing else takes it, and nothing else in this bar
+     * ever does. Gating on focus latched the field permanently after the first tap, freezing the
+     * reading while the wheel, the swatches and the panel all carried on changing.
+     */
     private fun syncHexField(argb: Int) {
         val field = hexField ?: return
-        syncingColor = true
+        if (userTypingHex) return
         val text = if (Color.alpha(argb) == 255)
             String.format("%06X", argb and 0x00FFFFFF)
         else
             String.format("%08X", argb)
-        if (!field.hasFocus()) field.setText(text)
+        if (field.text.toString() == text) return
+        syncingColor = true
+        field.setText(text)
+        // Park the caret at the end rather than letting setText reset it to 0, so the field is ready
+        // to type into if it happens to be focused.
+        if (field.hasFocus()) field.setSelection(text.length)
         syncingColor = false
     }
 
@@ -546,6 +651,10 @@ class LiveEditSession(
         else baseStyle
 
     private fun selectColor(c: EditableColor) {
+        // Close the field *before* the selection moves. Dropping focus commits whatever is in it,
+        // and committing after the switch would write the colour typed for the old element onto the
+        // new one. The keyboard also has to go: it sits right over the wheel the user is heading for.
+        dismissHexKeyboard()
         selectedColor = c
         refreshSwatchStrokes()
         refreshPickerFromSelection()
@@ -557,9 +666,12 @@ class LiveEditSession(
         }
     }
 
-    /** Point the wheel + hex field at the currently-selected element's colour, without re-emitting. */
+    /** Point the wheel + hex field at the currently-selected element's colour, without re-emitting.
+     *  A different element is now being edited, so any half-typed hex for the previous one is stale:
+     *  drop the mid-type hold and let the field show what's actually selected. */
     private fun refreshPickerFromSelection() {
         val current = colorOf(selectedColor)
+        userTypingHex = false
         syncingColor = true
         colorWheel?.setColor(current)
         syncingColor = false
@@ -578,6 +690,94 @@ class LiveEditSession(
     private fun onColorTappedInPanel(c: EditableColor) {
         if (c !in visibleColors(version, config.component)) return
         selectColor(c)
+    }
+
+    // ── eyedropper ──────────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Hand over to [ScreenColorPicker] so the user can take a colour off any screen on the device.
+     *
+     * The editor's own windows go away for the duration — they'd otherwise be the only thing in the
+     * screenshot — but the session itself stays alive, so unsaved edits made before the pick are
+     * still there when it comes back.
+     */
+    private fun startEyedropper() {
+        if (finished) return
+        dismissHexKeyboard()
+        suspendChrome()
+        ScreenColorPicker.start(
+            activity = activity,
+            onPicked = { argb ->
+                resumeChrome()
+                setColorValue(argb)
+                colorWheel?.let { syncingColor = true; it.setColor(argb); syncingColor = false }
+                syncHexField(argb)
+            },
+            onCancelled = { resumeChrome() },
+        )
+    }
+
+    /**
+     * Take the editor off screen without losing it. The bar is hidden rather than removed so its
+     * dragged position, opacity step and collapsed state all survive; only the panel's window is
+     * genuinely torn down, and [OverlayController.show] rebuilds it from the same live-edit state.
+     *
+     * The orientation lock is deliberately left in place: it only constrains this app's own window,
+     * so it doesn't stop the user rotating whatever they navigate to, and releasing it would just
+     * add a way for the activity to be recreated out from under a suspended session.
+     */
+    private fun suspendChrome() {
+        bar?.visibility = View.GONE
+        backdrop?.visibility = View.GONE
+        controller.hide()
+    }
+
+    private fun resumeChrome() {
+        if (finished) return
+        controller.show()
+        backdrop?.visibility = View.VISIBLE
+        bar?.visibility = View.VISIBLE
+        // show() re-adds the panel's window on top of the bar, same as a component switch does, so
+        // Save and Cancel have to be lifted back above it.
+        raiseBar()
+        // Bring the app back in front of whatever the user wandered off to. Permitted from the
+        // background because the app holds SYSTEM_ALERT_WINDOW, which is one of the platform's
+        // documented exemptions from the background-activity-start restrictions — and the session
+        // couldn't have started at all without that permission.
+        runCatching {
+            appCtx.startActivity(
+                Intent(appCtx, MainActivity::class.java).addFlags(
+                    Intent.FLAG_ACTIVITY_NEW_TASK or
+                        Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or
+                        Intent.FLAG_ACTIVITY_SINGLE_TOP,
+                ),
+            )
+        }
+    }
+
+    /**
+     * Drop the soft keyboard when the hex field is no longer what the user is working in — left up
+     * it covers the wheel, which is the thing they just tapped a swatch to go and dial.
+     *
+     * Losing focus is what commits the field, which is right when the user is moving on to another
+     * element but wrong when the *wheel* is what took over: there the typed text is already stale,
+     * and committing it would push it back into the wheel mid-drag and fight the finger. Passing
+     * [commit] as false suppresses that through the same [syncingColor] guard [commitHexField]
+     * already honours — the wheel's own value follows immediately either way.
+     */
+    private fun dismissHexKeyboard(commit: Boolean = true) {
+        val field = hexField ?: return
+        if (!field.hasFocus()) return
+        userTypingHex = false
+        if (commit) {
+            field.clearFocus()
+        } else {
+            syncingColor = true
+            field.clearFocus()
+            syncingColor = false
+        }
+        val imm = appCtx.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
+        runCatching { imm?.hideSoftInputFromWindow(bar?.windowToken, 0) }
     }
 
     // ── shared bar bits ─────────────────────────────────────────────────────────────────────────────
@@ -745,6 +945,10 @@ class LiveEditSession(
     }
 
     private fun save() {
+        // Land any value still sitting in the hex field first — dropping focus is what commits it,
+        // and if that only happened during finish() the user's last typed colour would be written
+        // into the working copy just after it had been persisted, and so be lost.
+        dismissHexKeyboard()
         customizationPrefs.setFor(version, config.working)
         finish()
     }
@@ -754,6 +958,10 @@ class LiveEditSession(
     private fun finish() {
         if (finished) return
         finished = true
+        // A pick still in flight has overlay windows of its own and a callback pointing back into
+        // this session, neither of which can outlive it.
+        ScreenColorPicker.cancel()
+        dismissHexKeyboard()
         bar?.let { view -> runCatching { windowManager.removeView(view) } }
         bar = null
         controller.destroy()

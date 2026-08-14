@@ -87,7 +87,13 @@ class ColorWheelPicker(
 
     /** Drive the control from an external ARGB [argb] (hex field / swatch) without re-emitting. */
     fun setColor(argb: Int) {
+        val previousHue = hsv[0]
         Color.colorToHSV(argb, hsv)
+        // A neutral — grey, black or white — has no hue to report, and colorToHSV answers 0 for it,
+        // which would fling the knob round to red. Keep whatever hue was already dialled in: at zero
+        // saturation the knob sits dead centre either way, so nothing is lost, and dragging value
+        // down to black and back now returns to the colour it started from instead of red.
+        if (hsv[1] == 0f) hsv[0] = previousHue
         alpha = Color.alpha(argb) / 255f
         invalidate()
     }
