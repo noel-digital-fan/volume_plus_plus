@@ -533,11 +533,27 @@ class LiveEditSession(
             topMargin = px(8)
         })
 
-        val actions = LinearLayout(appCtx).apply { orientation = LinearLayout.HORIZONTAL }
+        val actions = LinearLayout(appCtx).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
         actions.addView(textAction(strings.liveEditUseDefault, onBar) { setColorValue(null) })
         actions.addView(textAction(strings.liveEditPickFromScreen, accent) { startEyedropper() })
+        actions.addView(textAction("Material You", accent, bold = true) { applyMaterialYouColors() })
         panel.addView(actions)
 
+        refreshPickerFromSelection()
+    }
+
+    /** Inherit system dynamic Material You palette tokens from the user's device and apply live. */
+    private fun applyMaterialYouColors() {
+        val sysColors = getSystemMaterialYouColors(appCtx, dark)
+        visibleColors(version, config.component).forEach { c ->
+            sysColors[c]?.let { config.withColor(c, it) }
+        }
+        controller.applyLiveColors()
+        rebuildSwatches()
+        refreshSwatchStrokes()
         refreshPickerFromSelection()
     }
 
