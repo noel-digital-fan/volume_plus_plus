@@ -101,6 +101,33 @@ data class VersionCustomization(
 }
 
 /**
+ * This component back at its default docked spot in **both** orientations, its colours untouched.
+ */
+fun ComponentCustomization.withDefaultOffsets(): ComponentCustomization =
+    copy(portrait = PanelOffset(), landscape = PanelOffset())
+
+/** This component with every colour override dropped, its positions untouched. */
+fun ComponentCustomization.withDefaultColors(): ComponentCustomization = copy(colors = PanelColors())
+
+/**
+ * A whole version back at its default positions — every component, both orientations — keeping the
+ * colours it has. Backs the edit hub's "restore default position", which is deliberately independent
+ * of the colour restore below, and of every other version.
+ */
+fun VersionCustomization.withDefaultOffsets(): VersionCustomization = VersionCustomization(
+    main = main.withDefaultOffsets(),
+    expanded = expanded.withDefaultOffsets(),
+    output = output.withDefaultOffsets(),
+)
+
+/** A whole version back at its skin's own colours (every component), keeping its positions. */
+fun VersionCustomization.withDefaultColors(): VersionCustomization = VersionCustomization(
+    main = main.withDefaultColors(),
+    expanded = expanded.withDefaultColors(),
+    output = output.withDefaultColors(),
+)
+
+/**
  * The named overlay elements the colour editor can expose. Not every element is offered on every
  * skin — [visibleColors] picks the subset that actually has a visible effect for a given version +
  * component. The first five ([BACKGROUND]…[ACCENT]) are the common core; [TEXT] and [SECONDARY] only
