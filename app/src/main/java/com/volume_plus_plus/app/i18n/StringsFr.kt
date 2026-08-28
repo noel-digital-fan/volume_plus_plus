@@ -159,6 +159,11 @@ object FrenchStrings : Strings() {
     override val overlayStyle get() = "Style"
     override val overlayEdit get() = "Modifier"
 
+    override val overlaySettingsOpensApp get() = "Le bouton Paramètres ouvre Volume++"
+    override val overlaySettingsOpensAppDetail get() =
+        "Le bouton PARAMÈTRES / VOIR PLUS du panneau ouvre Volume++ au lieu des " +
+            "paramètres de son d'Android."
+
     override val overlayMotion get() = "Mouvement"
     override val overlayMotionInfo get() =
         "Ces réglages ajustent la fluidité du panneau pendant que vous maintenez la touche de " +

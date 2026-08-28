@@ -159,6 +159,12 @@ object PortugueseStrings : Strings() {
     override val overlayStyle get() = "Estilo"
     override val overlayEdit get() = "Editar"
 
+    override val overlaySettingsOpensApp get() =
+        "O botão de configurações abre o Volume++"
+    override val overlaySettingsOpensAppDetail get() =
+        "O botão CONFIGURAÇÕES / VER MAIS do painel abre o Volume++ em vez das " +
+            "configurações de som do Android."
+
     override val overlayMotion get() = "Movimento"
     override val overlayMotionInfo get() =
         "Estas configurações ajustam a suavidade do painel enquanto você mantém a tecla de volume " +

@@ -174,6 +174,12 @@ open class Strings {
     open val overlayStyle get() = "Style"
     open val overlayEdit get() = "Edit"
 
+    /** Offered only for the Android 9–15 styles — the 7–8 panel has no Settings button. */
+    open val overlaySettingsOpensApp get() = "Settings button opens Volume++"
+    open val overlaySettingsOpensAppDetail get() =
+        "The panel's SETTINGS / SEE MORE button opens Volume++ instead of Android's sound " +
+            "settings."
+
     open val overlayMotion get() = "Motion"
     open val overlayMotionInfo get() =
         "These settings scale the overlay's easing while you hold the volume key. Leave both at " +

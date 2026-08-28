@@ -68,6 +68,18 @@ class OverlayPrefs(context: Context) {
         prefs.edit().putBoolean(KEY_SYSTEM_VOLUME_PANEL, enabled).apply()
     }
 
+    /**
+     * Whether the expanded sheet's SETTINGS / SEE MORE button should open Volume++ itself instead of
+     * Android's Sound settings. Off by default: the skins reproduce the stock panels, and the stock
+     * button goes to the system screen. Only the Android 9–15 skins draw that button at all, so
+     * the Android 7–8 skin ignores this.
+     */
+    fun isSettingsOpensAppEnabled(): Boolean = prefs.getBoolean(KEY_SETTINGS_OPENS_APP, false)
+
+    fun setSettingsOpensAppEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_SETTINGS_OPENS_APP, enabled).apply()
+    }
+
     /** Multiplier for the slider's follow speed while a held key is still stepping. */
     fun getHoldFollowScale(): Float = prefs.getFloat(KEY_HOLD_FOLLOW_SCALE, 1f)
 
@@ -102,6 +114,7 @@ class OverlayPrefs(context: Context) {
         const val KEY_LEGACY_VERSION = "legacy_version"
         const val KEY_SEVEN_EIGHT_VERSION = "seven_eight_version"
         const val KEY_SYSTEM_VOLUME_PANEL = "system_volume_panel"
+        const val KEY_SETTINGS_OPENS_APP = "settings_opens_app"
         const val KEY_HOLD_FOLLOW_SCALE = "hold_follow_scale"
         const val KEY_HOLD_SETTLE_SCALE = "hold_settle_scale"
         const val KEY_HOLD_STEP_HAPTICS = "hold_step_haptics"

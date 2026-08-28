@@ -1837,7 +1837,16 @@ class OverlayController(
     private fun openSoundSettings() {
         // In an editor, SETTINGS/SEE MORE is inert — it's a preview, not a live panel.
         if (preview != null || liveEdit != null) return
-        val intent = Intent(Settings.ACTION_SOUND_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        // With "Settings button opens Volume++" on, it lands in our own app instead of Android's
+        // Sound settings. If the launcher intent can't be resolved we still fall back to the system
+        // screen rather than doing nothing.
+        val appIntent = if (prefs.isSettingsOpensAppEnabled()) {
+            context.packageManager.getLaunchIntentForPackage(context.packageName)
+        } else {
+            null
+        }
+        val intent = (appIntent ?: Intent(Settings.ACTION_SOUND_SETTINGS))
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         runCatching { context.startActivity(intent) }
         hide()
     }

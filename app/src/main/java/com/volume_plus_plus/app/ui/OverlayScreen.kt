@@ -154,6 +154,7 @@ private fun OverlaySetup(
     val prefs = remember { OverlayPrefs(context) }
     var version by remember { mutableStateOf(OverlayVersion.current(prefs)) }
     var systemVolumePanel by remember { mutableStateOf(prefs.isSystemVolumePanelEnabled()) }
+    var settingsOpensApp by remember { mutableStateOf(prefs.isSettingsOpensAppEnabled()) }
     var holdFollowScale by remember { mutableStateOf(prefs.getHoldFollowScale()) }
     var holdSettleScale by remember { mutableStateOf(prefs.getHoldSettleScale()) }
     var holdStepHaptics by remember { mutableStateOf(prefs.isHoldStepHapticsEnabled()) }
@@ -180,6 +181,7 @@ private fun OverlaySetup(
         accessibilityOn = isAccessibilityEnabled(context)
         dndAccessOn = hasDndAccess(context)
         systemVolumePanel = prefs.isSystemVolumePanelEnabled()
+        settingsOpensApp = prefs.isSettingsOpensAppEnabled()
         holdFollowScale = prefs.getHoldFollowScale()
         holdSettleScale = prefs.getHoldSettleScale()
             holdStepHaptics = prefs.isHoldStepHapticsEnabled()
@@ -312,6 +314,21 @@ private fun OverlaySetup(
             },
             onEdit = onEdit,
         )
+        // Where the expanded sheet's SETTINGS / SEE MORE button goes. Only the Android 9–15
+        // panels draw one, so with the 7–8 style selected there is nothing to redirect and
+        // the switch is left out entirely.
+        if (version.hasExpanded) {
+            SettingSwitch(
+                title = s.overlaySettingsOpensApp,
+                subtitle = s.overlaySettingsOpensAppDetail,
+                checked = settingsOpensApp,
+                enabled = styleEnabled,
+                onCheckedChange = {
+                    settingsOpensApp = it
+                    prefs.setSettingsOpensAppEnabled(it)
+                },
+            )
+        }
         Text(
             text = s.overlayMotion,
             style = MaterialTheme.typography.titleMedium,
@@ -435,6 +452,7 @@ private fun SettingSwitch(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
     highlight: Float = 0f,
 ) {
     Card(
@@ -459,16 +477,22 @@ private fun SettingSwitch(
             modifier = Modifier.padding(start = 14.dp, top = 10.dp, bottom = 10.dp, end = 8.dp),
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(text = title, style = MaterialTheme.typography.bodyLarge)
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = if (enabled) Color.Unspecified else disabledContentColor(),
+                )
                 Text(
                     text = subtitle,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = if (enabled) MaterialTheme.colorScheme.onSurfaceVariant
+                    else disabledContentColor(),
                 )
             }
             Switch(
                 checked = checked,
                 onCheckedChange = onCheckedChange,
+                enabled = enabled,
             )
         }
     }
