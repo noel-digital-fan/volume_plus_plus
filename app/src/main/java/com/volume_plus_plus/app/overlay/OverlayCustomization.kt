@@ -523,3 +523,64 @@ fun OverlayStyle.applyColors(colors: PanelColors): OverlayStyle = copy(
     doneTextColor = colors.doneText ?: doneTextColor,
     titleColor = colors.title ?: titleColor,
 )
+
+/**
+ * Extract system dynamic Material You palette tokens from the device (Android 12+ / API 31+),
+ * falling back to Material 3 reference colors on older systems.
+ */
+fun getSystemMaterialYouColors(context: android.content.Context, dark: Boolean): Map<EditableColor, Int> {
+    val primary = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+        context.getColor(if (dark) android.R.color.system_accent1_200 else android.R.color.system_accent1_600)
+    } else android.graphics.Color.parseColor(if (dark) "#FFC1E8FF" else "#FF00668B")
+
+    val primaryContainer = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+        context.getColor(if (dark) android.R.color.system_accent1_700 else android.R.color.system_accent1_100)
+    } else android.graphics.Color.parseColor(if (dark) "#FF004D68" else "#FFC5E7FF")
+
+    val background = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+        context.getColor(if (dark) android.R.color.system_neutral1_900 else android.R.color.system_neutral1_50)
+    } else android.graphics.Color.parseColor(if (dark) "#FF1A1C1E" else "#FFFFFFFF")
+
+    val surfaceContainer = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+        context.getColor(if (dark) android.R.color.system_neutral1_800 else android.R.color.system_neutral1_100)
+    } else android.graphics.Color.parseColor(if (dark) "#FF2B2B2B" else "#FFE8E8E8")
+
+    val onSurface = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+        context.getColor(if (dark) android.R.color.system_neutral1_100 else android.R.color.system_neutral1_900)
+    } else android.graphics.Color.parseColor(if (dark) "#FFE2E2E5" else "#FF191C1E")
+
+    val onSurfaceVariant = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+        context.getColor(if (dark) android.R.color.system_neutral2_200 else android.R.color.system_neutral2_700)
+    } else android.graphics.Color.parseColor(if (dark) "#FFC4C7D0" else "#FF44474E")
+
+    val track = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+        context.getColor(if (dark) android.R.color.system_accent2_700 else android.R.color.system_accent2_100)
+    } else android.graphics.Color.parseColor(if (dark) "#FF40484D" else "#FFCFE4F2")
+
+    return mapOf(
+        EditableColor.BACKGROUND to background,
+        EditableColor.PROGRESS to primary,
+        EditableColor.TRACK to track,
+        EditableColor.ICON to onSurfaceVariant,
+        EditableColor.ACCENT to primary,
+        EditableColor.TEXT to onSurface,
+        EditableColor.SECONDARY to surfaceContainer,
+        EditableColor.MEDIA_ICON to primary,
+        EditableColor.MODE_ICON to (if (dark) android.graphics.Color.BLACK else android.graphics.Color.WHITE),
+        EditableColor.OVERFLOW to primary,
+        EditableColor.DOT to primary,
+        EditableColor.OUTPUT_SURFACE to surfaceContainer,
+        EditableColor.DONE_BG to primary,
+        EditableColor.DONE_TEXT to (if (dark) android.graphics.Color.BLACK else android.graphics.Color.WHITE),
+        EditableColor.TITLE to onSurface,
+        EditableColor.OUTPUT_CARD to background,
+        EditableColor.OUTPUT_SLIDER to primary,
+        EditableColor.OUTPUT_SLIDER_TRACK to track,
+        EditableColor.OUTPUT_PICKER_ICON to onSurface,
+        EditableColor.OUTPUT_PICKER_TEXT to onSurface,
+        EditableColor.OUTPUT_PICKER_DOT to onSurface,
+        EditableColor.OUTPUT_CONNECT to primary,
+        EditableColor.OUTPUT_DONE to primary,
+        EditableColor.OUTPUT_DONE_TEXT to (if (dark) android.graphics.Color.BLACK else android.graphics.Color.WHITE),
+    )
+}
