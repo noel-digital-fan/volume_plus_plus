@@ -145,6 +145,26 @@ open class Strings {
         "Root was granted, but the privileged helper never came back."
     open val rootUseShizukuInstead get() = "Use Shizuku instead"
 
+    // ── Mixing tab: banking-app detection fix ────────────────────────────────────────────────────
+
+    open val bankingFixTitle get() = "Banking app flagging Volume++?"
+    open val bankingFixBody get() =
+        "Because Volume++ was installed from GitHub, some banking apps report it as coming from an " +
+            "\"unofficial app store\". Volume++ can re-register itself as a Play Store install to " +
+            "clear that — your settings are kept and no features change."
+    open val bankingFixAction get() = "Fix now"
+
+    open val bankingFixConfirmTitle get() = "Fix banking-app detection"
+    open val bankingFixConfirmBody get() =
+        "Volume++ will reinstall itself in place to update its install source. It closes and " +
+            "reopens once — that's normal, and nothing is lost. You'll need to do this again after " +
+            "each update from GitHub."
+    open val bankingFixConfirmButton get() = "Reinstall"
+
+    open val bankingFixDone get() = "Done — Volume++ now registers as a Play Store install."
+    open val bankingFixFailed get() =
+        "Couldn't update the install source. Check the privileged helper is connected and try again."
+
     // ── Overlay tab ─────────────────────────────────────────────────────────────────────────────
 
     open val overlayTitle get() = "Overlay"

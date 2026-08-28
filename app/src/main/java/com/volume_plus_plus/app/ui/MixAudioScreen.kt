@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -145,6 +146,39 @@ fun MixAudioScreen(
             if (!setup.ready) {
                 SetupChecklist(setup = setup)
             } else {
+                // Sideloaded-from-GitHub builds trip banking apps' "unofficial app store" check.
+                // Offered here because relabelling the install source needs the very privileged link
+                // this tab has just brought up; the card shows itself only while the source still
+                // looks sideloaded, so it clears once fixed and returns after each GitHub update.
+                var bankingRecognised by remember {
+                    mutableStateOf(PrivilegedManager.installSourceRecognised(context))
+                }
+                var showBankingConfirm by remember { mutableStateOf(false) }
+                var bankingWorking by remember { mutableStateOf(false) }
+                if (!bankingRecognised) {
+                    BankingFixCard(working = bankingWorking, onFix = { showBankingConfirm = true })
+                }
+                if (showBankingConfirm) {
+                    BankingFixDialog(
+                        onDismiss = { showBankingConfirm = false },
+                        onConfirm = {
+                            showBankingConfirm = false
+                            scope.launch {
+                                bankingWorking = true
+                                val ok = PrivilegedManager.fixInstallSource()
+                                bankingWorking = false
+                                // Usually unreachable: the reinstall's commit kills this process
+                                // first, and the fresh launch simply finds the source recognised.
+                                if (ok) {
+                                    bankingRecognised = true
+                                    snackbar.showSnackbar(s.bankingFixDone)
+                                } else {
+                                    snackbar.showSnackbar(s.bankingFixFailed)
+                                }
+                            }
+                        },
+                    )
+                }
                 val filtered = remember(apps, query, hideSystem) {
                     apps.filter { app ->
                         (!hideSystem || !app.isSystem) &&
@@ -297,6 +331,68 @@ private fun WarningBanner(onDismiss: () -> Unit) {
             }
         }
     }
+}
+
+/**
+ * The call to action that clears a banking app's "downloaded from an unofficial app store" flag.
+ * Shown on the mixing tab because the fix reuses the privileged link set up here, and only while the
+ * install source still looks sideloaded — so it disappears the moment it succeeds. [working] shows a
+ * spinner for the brief window before the reinstall's commit tears the UI down.
+ */
+@Composable
+private fun BankingFixCard(working: Boolean, onFix: () -> Unit) {
+    val s = strings()
+    Surface(
+        color = MaterialTheme.colorScheme.tertiaryContainer,
+        shape = RoundedCornerShape(16.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 8.dp),
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_warning),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onTertiaryContainer,
+                    modifier = Modifier.size(20.dp),
+                )
+                Spacer(Modifier.width(10.dp))
+                Text(
+                    text = s.bankingFixTitle,
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onTertiaryContainer,
+                )
+            }
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = s.bankingFixBody,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onTertiaryContainer,
+            )
+            Spacer(Modifier.height(12.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Button(onClick = onFix, enabled = !working) { Text(s.bankingFixAction) }
+                if (working) {
+                    Spacer(Modifier.width(12.dp))
+                    CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.size(20.dp))
+                }
+            }
+        }
+    }
+}
+
+/** Confirms the in-place reinstall, warning that the app closes and reopens once. */
+@Composable
+private fun BankingFixDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    val s = strings()
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(s.bankingFixConfirmTitle) },
+        text = { Text(s.bankingFixConfirmBody) },
+        confirmButton = { TextButton(onClick = onConfirm) { Text(s.bankingFixConfirmButton) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(s.cancel) } },
+    )
 }
 
 @Composable

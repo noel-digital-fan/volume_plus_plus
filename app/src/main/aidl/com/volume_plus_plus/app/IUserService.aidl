@@ -55,4 +55,16 @@ interface IUserService {
      * output; the sub-command only exists on newer platforms, so callers must handle failure.
      */
     String setRingerMode(String mode) = 7;
+
+    /**
+     * Reinstalls this app's own package in place with its install source set to
+     * {@code installerPackage} (e.g. "com.android.vending", the Play Store), clearing the
+     * "installed from an unofficial app store" flag some banking apps raise against a sideloaded
+     * build. It is a same-signature, same-version in-place update, so app data, granted permissions
+     * and the enabled accessibility service are all preserved. The platform kills this app's own UI
+     * process when the update commits — expected, and unavoidable for a base reinstall — while this
+     * shell/root process runs under a different UID and survives to finish. Returns the raw
+     * {@code pm} output ("Success" on success).
+     */
+    String setInstallerSource(String installerPackage) = 8;
 }
