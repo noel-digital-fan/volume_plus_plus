@@ -116,6 +116,9 @@ against that style alone.
 - **Colours** — tap any part of the panel to recolor it: background, slider fill and track, icons,
   accent, text, buttons. Colors are shared across orientations, so they're edited in whichever way
   the device happens to be held.
+- **Restore defaults** — **Restore default position** puts every one of that style's panels back
+  where it docks (both orientations), and **Restore default colours** drops its colour overrides.
+  Each undoes only its own half, and neither touches any other style.
 
 ### The eyedropper
 

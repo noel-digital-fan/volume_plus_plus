@@ -26,12 +26,15 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.size
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -41,6 +44,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -58,6 +62,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import com.volume_plus_plus.app.R
 import com.volume_plus_plus.app.config.AppConfig
+import com.volume_plus_plus.app.data.OverlayCustomizationPrefs
 import com.volume_plus_plus.app.data.OverlayPrefs
 import com.volume_plus_plus.app.i18n.strings
 import com.volume_plus_plus.app.overlay.AppVolumeController
@@ -66,8 +71,10 @@ import com.volume_plus_plus.app.overlay.LiveEditMode
 import com.volume_plus_plus.app.overlay.LiveEditSession
 import com.volume_plus_plus.app.overlay.OverlayController
 import com.volume_plus_plus.app.overlay.OverlayVersion
+import com.volume_plus_plus.app.overlay.StepHaptics
 import com.volume_plus_plus.app.service.VolumeKeyService
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 
 /** Three 900ms pulses ≈ the ~3s spotlight the Mixing tab asks for, plus the scroll that precedes it. */
 private const val HIGHLIGHT_PULSES = 3
@@ -81,11 +88,13 @@ private const val HIGHLIGHT_PULSE_MS = 450
  * on resume so returning from a Settings screen reflects immediately.
  *
  * [highlightSystemVolumeSwitch] is the Mixing tab asking us to point at the one setting that blocks
- * mixing; it plays once and then reports back via [onHighlightShown].
+ * mixing; it plays once and then reports back via [onHighlightShown]. [snackbar] carries the short
+ * confirmations the per-style edit hub reports back with.
  */
 @Composable
 fun OverlayScreen(
     contentPadding: PaddingValues,
+    snackbar: SnackbarHostState,
     highlightSystemVolumeSwitch: Boolean = false,
     onHighlightShown: () -> Unit = {},
 ) {
@@ -102,7 +111,10 @@ fun OverlayScreen(
         return
     }
 
+    val s = strings()
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val customizationPrefs = remember(context) { OverlayCustomizationPrefs(context) }
     val deviceOrientation =
         if (LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE)
             EditOrientation.LANDSCAPE else EditOrientation.PORTRAIT
@@ -138,6 +150,16 @@ fun OverlayScreen(
         // Colours are shared across orientations, so edit them in whatever way the device is held now.
         onEditColors = { launchLiveEdit(deviceOrientation, LiveEditMode.COLOR) },
         onEditPosition = { orientation -> launchLiveEdit(orientation, LiveEditMode.POSITION) },
+        // Both restores write straight through for this version alone; the overlay re-reads its
+        // customization every time it renders, so the next panel already comes up restored.
+        onRestorePosition = {
+            customizationPrefs.restoreDefaultPosition(version)
+            scope.launch { snackbar.showSnackbar(s.editRestoredPosition(version.label)) }
+        },
+        onRestoreColors = {
+            customizationPrefs.restoreDefaultColors(version)
+            scope.launch { snackbar.showSnackbar(s.editRestoredColours(version.label)) }
+        },
     )
 }
 
@@ -159,6 +181,10 @@ private fun OverlaySetup(
     var holdSettleScale by remember { mutableStateOf(prefs.getHoldSettleScale()) }
     var holdStepHaptics by remember { mutableStateOf(prefs.isHoldStepHapticsEnabled()) }
     var holdStepHapticIntensity by remember { mutableStateOf(prefs.getHoldStepHapticIntensity()) }
+
+    // The same vibrator the accessibility service ticks through, so the sample the user feels while
+    // setting the level is exactly what a held volume key will give them.
+    val vibrator = remember(context) { StepHaptics.vibrator(context) }
 
     var canOverlay by remember { mutableStateOf(Settings.canDrawOverlays(context)) }
     var accessibilityOn by remember { mutableStateOf(isAccessibilityEnabled(context)) }
@@ -299,6 +325,22 @@ private fun OverlaySetup(
         // The style only describes the overlay, so it has nothing to drive while the system panel is
         // in charge: the whole section greys out and stops responding until the switch goes back off.
         val styleEnabled = !systemVolumePanel
+        // Where the expanded sheet's SETTINGS / SEE MORE button goes. Kept up here with the other
+        // overlay switch rather than under the style list, which is long enough to push it out of
+        // sight. Only the Android 9–15 panels draw that button, so with the 7–8 style selected there
+        // is nothing to redirect and the switch is left out entirely.
+        if (version.hasExpanded) {
+            SettingSwitch(
+                title = s.overlaySettingsOpensApp,
+                subtitle = s.overlaySettingsOpensAppDetail,
+                checked = settingsOpensApp,
+                enabled = styleEnabled,
+                onCheckedChange = {
+                    settingsOpensApp = it
+                    prefs.setSettingsOpensAppEnabled(it)
+                },
+            )
+        }
         Text(
             text = s.overlayStyle,
             style = MaterialTheme.typography.titleMedium,
@@ -314,21 +356,6 @@ private fun OverlaySetup(
             },
             onEdit = onEdit,
         )
-        // Where the expanded sheet's SETTINGS / SEE MORE button goes. Only the Android 9–15
-        // panels draw one, so with the 7–8 style selected there is nothing to redirect and
-        // the switch is left out entirely.
-        if (version.hasExpanded) {
-            SettingSwitch(
-                title = s.overlaySettingsOpensApp,
-                subtitle = s.overlaySettingsOpensAppDetail,
-                checked = settingsOpensApp,
-                enabled = styleEnabled,
-                onCheckedChange = {
-                    settingsOpensApp = it
-                    prefs.setSettingsOpensAppEnabled(it)
-                },
-            )
-        }
         Text(
             text = s.overlayMotion,
             style = MaterialTheme.typography.titleMedium,
@@ -337,6 +364,7 @@ private fun OverlaySetup(
         InfoCard(s.overlayMotionInfo)
         SettingSlider(
             title = s.overlayHoldFollowSpeed,
+            info = s.overlayHoldFollowSpeedInfo,
             value = holdFollowScale,
             onValueChange = {
                 holdFollowScale = it
@@ -345,6 +373,7 @@ private fun OverlaySetup(
         )
         SettingSlider(
             title = s.overlayHoldSettleSpeed,
+            info = s.overlayHoldSettleSpeedInfo,
             value = holdSettleScale,
             onValueChange = {
                 holdSettleScale = it
@@ -360,20 +389,30 @@ private fun OverlaySetup(
         SettingSwitch(
             title = s.overlayStepHaptics,
             subtitle = s.overlayStepHapticsDetail,
+            info = s.overlayStepHapticsInfo,
             checked = holdStepHaptics,
             onCheckedChange = {
                 holdStepHaptics = it
                 prefs.setHoldStepHapticsEnabled(it)
+                if (it) StepHaptics.play(vibrator, holdStepHapticIntensity)
             },
         )
         SettingSlider(
             title = s.overlayHapticIntensity,
+            info = s.overlayHapticIntensityInfo,
+            // Nothing to tune while the step haptic is switched off, so the row greys out with it —
+            // the ⓘ stays live, so it can still be read to find out what the switch would give you.
+            enabled = holdStepHaptics,
             value = holdStepHapticIntensity,
             valueRange = 0.5f..2.0f,
             steps = 150,
             onValueChange = {
+                val previous = holdStepHapticIntensity
                 holdStepHapticIntensity = it
                 prefs.setHoldStepHapticIntensity(it)
+                // Sample as it's dragged, but only each 10% of travel — the slider emits far too
+                // many values to buzz on every one, and a tick per notch reads as a detent.
+                if ((it * 10).toInt() != (previous * 10).toInt()) StepHaptics.play(vibrator, it)
             },
         )
         Button(
@@ -403,12 +442,15 @@ private fun OverlaySetup(
     }
 }
 
+/** A titled slider. [info] adds the ⓘ button that explains, in plain words, what it changes. */
 @Composable
 private fun SettingSlider(
     title: String,
     value: Float,
     valueRange: ClosedFloatingPointRange<Float> = 0.5f..2.0f,
     steps: Int = 149,
+    info: String? = null,
+    enabled: Boolean = true,
     onValueChange: (Float) -> Unit,
 ) {
     Card(
@@ -422,19 +464,26 @@ private fun SettingSlider(
         Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(text = title, style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = if (enabled) Color.Unspecified else disabledContentColor(),
+                    )
                     Text(
                         text = strings().percent((value * 100).toInt()),
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = if (enabled) MaterialTheme.colorScheme.onSurfaceVariant
+                        else disabledContentColor(),
                     )
                 }
+                if (info != null) InfoButton(title = title, body = info)
             }
             VolumeSlider(
                 value = value,
                 onValueChange = onValueChange,
                 valueRange = valueRange,
                 steps = steps,
+                enabled = enabled,
                 modifier = Modifier.fillMaxWidth(),
             )
         }
@@ -444,6 +493,7 @@ private fun SettingSlider(
 /**
  * A titled switch row. [highlight] (0..1) tints the card and draws a matching outline, so an
  * animation driving it makes the row pulse — used to point the user at one specific setting.
+ * [info] adds the ⓘ button that explains, in plain words, what the switch actually does.
  */
 @Composable
 private fun SettingSwitch(
@@ -454,6 +504,7 @@ private fun SettingSwitch(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     highlight: Float = 0f,
+    info: String? = null,
 ) {
     Card(
         colors = CardDefaults.cardColors(
@@ -489,12 +540,41 @@ private fun SettingSwitch(
                     else disabledContentColor(),
                 )
             }
+            if (info != null) InfoButton(title = title, body = info)
             Switch(
                 checked = checked,
                 onCheckedChange = onCheckedChange,
                 enabled = enabled,
             )
         }
+    }
+}
+
+/**
+ * The ⓘ next to a setting: a small button that opens the setting's own plain-language explanation.
+ * Kept as a dialog rather than a third line of subtitle — these explanations are a paragraph long,
+ * and only wanted by someone who went looking for them.
+ */
+@Composable
+private fun InfoButton(title: String, body: String) {
+    var open by remember { mutableStateOf(false) }
+    IconButton(onClick = { open = true }) {
+        Icon(
+            painter = painterResource(R.drawable.ic_info),
+            contentDescription = strings().moreInfo,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(20.dp),
+        )
+    }
+    if (open) {
+        AlertDialog(
+            onDismissRequest = { open = false },
+            title = { Text(title) },
+            text = { Text(body, style = MaterialTheme.typography.bodyMedium) },
+            confirmButton = {
+                TextButton(onClick = { open = false }) { Text(strings().done) }
+            },
+        )
     }
 }
 

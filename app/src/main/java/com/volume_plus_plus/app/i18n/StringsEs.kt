@@ -16,6 +16,9 @@ object SpanishStrings : Strings() {
     override val notDone get() = "Sin completar"
     override val back get() = "Atrás"
     override val dismiss get() = "Descartar"
+
+    override val moreInfo get() = "¿Qué hace esto?"
+
     override val selected get() = "Seleccionado"
     override val settings get() = "Ajustes"
     override val tryAgain get() = "Reintentar"
@@ -163,20 +166,45 @@ object SpanishStrings : Strings() {
 
     override val overlayMotion get() = "Movimiento"
     override val overlayMotionInfo get() =
-        "Estos ajustes escalan la suavidad del panel mientras mantienes pulsada la tecla de volumen. " +
-            "Deja ambos al 100 % para conservar el comportamiento actual, o ajústalos si quieres que " +
-            "el panel reaccione más rápido o se detenga con más suavidad."
+        "El movimiento controla c\u00f3mo se mueve el control; la vibraci\u00f3n controla lo que notas al " +
+            "usarlo. Deja ambas velocidades al 100 % para conservar la sensaci\u00f3n predeterminada, " +
+            "o aj\u00fastalas si quieres que el panel reaccione m\u00e1s r\u00e1pido o se detenga con m\u00e1s suavidad."
     override val overlayHoldFollowSpeed get() = "Velocidad de seguimiento"
     override val overlayHoldSettleSpeed get() = "Velocidad de asentamiento"
 
+    override val overlayHoldFollowSpeedInfo get() =
+        "Lo r\u00e1pido que el control sigue a tu dedo mientras lo mantienes o lo arrastras.\n\n" +
+            "M\u00e1s alto = el control sigue a tu dedo de forma m\u00e1s directa.\n" +
+            "M\u00e1s bajo = el movimiento se siente m\u00e1s lento y suave.\n\n" +
+            "Funciona igual mientras mantienes pulsada una tecla de volumen, donde la barra " +
+            "persigue el nuevo nivel en vez de saltar a \u00e9l, en todos los estilos, de Android 7 a 15."
+    override val overlayHoldSettleSpeedInfo get() =
+        "Lo r\u00e1pido que el control se asienta en su posici\u00f3n final cuando dejas de moverlo o lo " +
+            "sueltas.\n\nM\u00e1s alto = se coloca de golpe.\nM\u00e1s bajo = se asienta poco a poco."
+
     override val overlayHaptics get() = "Vibración"
     override val overlayHapticsInfo get() =
-        "Respuesta táctil opcional para los pasos de volumen repetidos. El control de intensidad " +
-            "mantiene la sensación predeterminada, pero puedes hacerla más suave o más fuerte."
-    override val overlayStepHaptics get() = "Vibración por paso al mantener"
+        "Vibraci\u00f3n = respuesta f\u00edsica que notas en la mano. Un toque corto en cada paso de " +
+            "volumen, venga de una tecla mantenida o de arrastrar un control; la intensidad de " +
+            "abajo decide su fuerza."
+    override val overlayStepHaptics get() = "Vibración por paso"
     override val overlayStepHapticsDetail get() =
-        "Un toque suave en cada paso de volumen repetido."
+        "Una vibración corta en cada paso de volumen: al mantener una tecla o al arrastrar un " +
+            "control."
+    override val overlayStepHapticsInfo get() =
+        "Cada paso que da el volumen produce una vibración corta, así que notas cómo se mueve sin " +
+            "mirar la pantalla: al mantener pulsada una tecla de volumen y al arrastrar cualquier " +
+            "control del panel, una vibración por cada paso que cruzas.\n\nUna pulsación suelta " +
+            "no vibra (solo una tecla mantenida) y un paso que no cambia nada tampoco, así que se " +
+            "queda en silencio cuando ya estás al máximo o al mínimo."
     override val overlayHapticIntensity get() = "Intensidad de la vibración"
+    override val overlayHapticIntensityInfo get() =
+        "La fuerza de cada vibración. El 100% es un toque ligero; menos es casi imperceptible y " +
+            "más es un golpecito firme.\n\nNo todos los teléfonos pueden variar la fuerza de su " +
+            "vibración. En uno que no puede, el control sigue sirviendo: salta entre los toques " +
+            "suave, medio y firme del propio teléfono en vez de pasar de uno a otro poco a " +
+            "poco.\n\nArrastra el control y notarás una muestra en cada paso, para ajustarlo " +
+            "al tacto."
 
     override val overlayPreview get() = "Previsualizar"
     override val overlayGrantToPreview get() = "Concede el permiso para previsualizar"
@@ -197,6 +225,24 @@ object SpanishStrings : Strings() {
     override val editColoursHint get() =
         "El panel se abre sobre tu pantalla: toca una parte del panel (o una muestra), ajusta el " +
             "color y luego guarda o cancela."
+
+    override val editRestoreDefaults get() = "Restablecer los valores predeterminados"
+    override val editRestoreDefaultsHint get() =
+        "Deshace tus cambios en este estilo. La posición y los colores se restablecen por " +
+            "separado, y ningún otro estilo se modifica."
+    override val editRestorePosition get() = "Restablecer la posición predeterminada"
+    override val editRestoreColours get() = "Restablecer los colores predeterminados"
+
+    override fun editRestorePositionBody(style: String) =
+        "¿Devolver todos los paneles de $style al lugar donde se colocan de forma " +
+            "predeterminada, tanto en retrato como en paisaje? Se conservan sus colores."
+    override fun editRestoreColoursBody(style: String) =
+        "¿Devolver todos los colores de $style a los que trae este estilo? Se conserva donde lo " +
+            "hayas colocado."
+    override val editRestoreConfirm get() = "Restablecer"
+
+    override fun editRestoredPosition(style: String) = "Posición de $style restablecida"
+    override fun editRestoredColours(style: String) = "Colores de $style restablecidos"
 
     override val editWhichLayout get() = "¿Qué orientación?"
     override val editWhichLayoutBody get() =

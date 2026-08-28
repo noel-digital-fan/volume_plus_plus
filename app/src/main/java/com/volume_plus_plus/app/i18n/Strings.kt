@@ -29,6 +29,10 @@ open class Strings {
     open val notDone get() = "Not done"
     open val back get() = "Back"
     open val dismiss get() = "Dismiss"
+
+    /** The ⓘ button's own description, for screen readers. */
+    open val moreInfo get() = "What does this do?"
+
     open val selected get() = "Selected"
     open val settings get() = "Settings"
     open val tryAgain get() = "Try again"
@@ -202,19 +206,45 @@ open class Strings {
 
     open val overlayMotion get() = "Motion"
     open val overlayMotionInfo get() =
-        "These settings scale the overlay's easing while you hold the volume key. Leave both at " +
-            "100% to keep the current behavior, or nudge them if you want the panel to catch up " +
-            "faster or settle more softly."
+        "Motion controls how the slider moves; haptics control the buzz you feel while you use it. " +
+            "Leave both speeds at 100% to keep the default feel, or nudge them if you want the " +
+            "panel to catch up faster or settle more softly."
     open val overlayHoldFollowSpeed get() = "Hold follow speed"
     open val overlayHoldSettleSpeed get() = "Hold settle speed"
 
+    /** The ⓘ explanations. Deliberately plain — they're what someone reads *because* the title
+     *  didn't tell them enough. */
+    open val overlayHoldFollowSpeedInfo get() =
+        "How quickly the slider follows your finger while you're holding or dragging it.\n\n" +
+            "Higher = the slider follows your finger more aggressively.\n" +
+            "Lower = the slider movement feels slower and smoother.\n\n" +
+            "It works the same while you hold a volume key, where the bar chases the new level " +
+            "instead of jumping to it \u2014 on every style, Android 7 to 15."
+    open val overlayHoldSettleSpeedInfo get() =
+        "How quickly the slider settles into its final position after you stop moving or release " +
+            "it.\n\nHigher = it snaps into place quickly.\nLower = it settles more gradually."
+
     open val overlayHaptics get() = "Haptics"
     open val overlayHapticsInfo get() =
-        "Optional tap feedback for repeated volume steps. The intensity slider keeps the same " +
-            "default feel, but you can make it lighter or stronger if you want."
-    open val overlayStepHaptics get() = "Step haptics while holding"
-    open val overlayStepHapticsDetail get() = "Light tap feedback on each repeated volume step."
+        "Haptics = vibration, buzz, physical feedback. A short buzz on each volume step, whether " +
+            "it comes from a held key or from dragging a slider; the intensity below sets how " +
+            "strong it is."
+    open val overlayStepHaptics get() = "Step haptics"
+    open val overlayStepHapticsDetail get() =
+        "A short buzz on each volume step — holding a key, or dragging a slider."
+    open val overlayStepHapticsInfo get() =
+        "Every step the volume takes gives a short buzz, so you can feel it moving without looking " +
+            "at the screen — while you hold a volume key, and while you drag any slider in the " +
+            "panel, one buzz per step you cross.\n\nA single key press doesn't buzz — only a held " +
+            "key does — and neither does a step that changes nothing, so it goes quiet once you're " +
+            "already at maximum or minimum."
     open val overlayHapticIntensity get() = "Haptic intensity"
+    open val overlayHapticIntensityInfo get() =
+        "How strong each buzz is. 100% is a light tick; lower is barely there, higher is a firm " +
+            "tap.\n\nNot every phone can vary how hard it vibrates. On one that can't, the slider " +
+            "still works — it just steps between the phone's own light, medium and firm taps " +
+            "instead of sliding smoothly between them.\n\nDrag the slider and you'll feel a " +
+            "sample at each notch, so you can set it by feel."
 
     open val overlayPreview get() = "Preview"
     open val overlayGrantToPreview get() = "Grant overlay to preview"
@@ -239,6 +269,28 @@ open class Strings {
     open val editColoursHint get() =
         "The panel opens on top of your screen — tap a part of it (or a swatch), dial the colour, " +
             "then Save or Cancel."
+
+    // Both restores put one style back to how it ships — position and colours separately, and only
+    // for the style whose hub they're pressed in.
+    open val editRestoreDefaults get() = "Restore defaults"
+    open val editRestoreDefaultsHint get() =
+        "Undo your edits for this style. Position and colours are restored separately, and no other " +
+            "style is touched."
+    open val editRestorePosition get() = "Restore default position"
+    open val editRestoreColours get() = "Restore default colours"
+
+    /** The restore confirmations. [style] is an overlay style's name, e.g. `Android 15`. */
+    open fun editRestorePositionBody(style: String) =
+        "Put every $style panel back where it docks by default, in both portrait and landscape? " +
+            "Its colours are kept."
+    open fun editRestoreColoursBody(style: String) =
+        "Put every $style colour back to the ones this style ships with? Where you've positioned " +
+            "it is kept."
+    open val editRestoreConfirm get() = "Restore"
+
+    /** Confirmation after a restore. [style] is an overlay style's name, e.g. `Android 15`. */
+    open fun editRestoredPosition(style: String) = "$style position restored"
+    open fun editRestoredColours(style: String) = "$style colours restored"
 
     open val editWhichLayout get() = "Which layout?"
     open val editWhichLayoutBody get() =

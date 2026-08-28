@@ -16,6 +16,9 @@ object FrenchStrings : Strings() {
     override val notDone get() = "Non terminé"
     override val back get() = "Retour"
     override val dismiss get() = "Ignorer"
+
+    override val moreInfo get() = "À quoi ça sert ?"
+
     override val selected get() = "Sélectionné"
     override val settings get() = "Paramètres"
     override val tryAgain get() = "Réessayer"
@@ -166,20 +169,46 @@ object FrenchStrings : Strings() {
 
     override val overlayMotion get() = "Mouvement"
     override val overlayMotionInfo get() =
-        "Ces réglages ajustent la fluidité du panneau pendant que vous maintenez la touche de " +
-            "volume. Laissez les deux à 100 % pour conserver le comportement actuel, ou modifiez-les " +
-            "si vous voulez que le panneau suive plus vite ou s'immobilise plus doucement."
+        "Le mouvement r\u00e8gle la fa\u00e7on dont le curseur bouge ; le retour haptique r\u00e8gle la " +
+            "vibration que vous sentez en l'utilisant. Laissez les deux vitesses \u00e0 100 % pour " +
+            "conserver la sensation par d\u00e9faut, ou modifiez-les si vous voulez que le panneau " +
+            "suive plus vite ou s'immobilise plus doucement."
     override val overlayHoldFollowSpeed get() = "Vitesse de suivi"
     override val overlayHoldSettleSpeed get() = "Vitesse d'immobilisation"
 
+    override val overlayHoldFollowSpeedInfo get() =
+        "\u00c0 quelle vitesse le curseur suit votre doigt pendant que vous le maintenez ou le faites " +
+            "glisser.\n\nPlus haut = le curseur colle davantage \u00e0 votre doigt.\n" +
+            "Plus bas = le mouvement para\u00eet plus lent et plus doux.\n\n" +
+            "C'est pareil quand vous maintenez une touche de volume : la barre poursuit le nouveau " +
+            "niveau au lieu d'y sauter \u2014 sur tous les styles, d'Android 7 \u00e0 15."
+    override val overlayHoldSettleSpeedInfo get() =
+        "\u00c0 quelle vitesse le curseur se pose \u00e0 sa position finale quand vous arr\u00eatez de le " +
+            "bouger ou que vous le rel\u00e2chez.\n\nPlus haut = il se cale d'un coup.\n" +
+            "Plus bas = il se pose progressivement."
+
     override val overlayHaptics get() = "Retour haptique"
     override val overlayHapticsInfo get() =
-        "Retour tactile facultatif pour les pas de volume répétés. Le curseur d'intensité conserve " +
-            "la sensation par défaut, mais vous pouvez la rendre plus légère ou plus forte."
+        "Retour haptique = vibration, petite secousse, sensation physique. Une br\u00e8ve vibration \u00e0 " +
+            "chaque pas de volume, qu'il vienne d'une touche maintenue ou d'un curseur d\u00e9plac\u00e9 ; " +
+            "l'intensit\u00e9 ci-dessous en r\u00e8gle la force."
     override val overlayStepHaptics get() = "Retour haptique à chaque pas"
     override val overlayStepHapticsDetail get() =
-        "Une légère vibration à chaque pas de volume répété."
+        "Une brève vibration à chaque pas de volume : touche maintenue ou curseur déplacé."
+    override val overlayStepHapticsInfo get() =
+        "Chaque pas du volume donne une brève vibration : vous sentez le volume bouger sans " +
+            "regarder l'écran — quand vous maintenez une touche de volume, et quand vous faites " +
+            "glisser un curseur du panneau, une vibration par pas franchi.\n\nUn simple appui ne " +
+            "vibre pas (seule une touche maintenue le fait), et un pas qui ne change rien non plus : " +
+            "c'est donc silencieux une fois au maximum ou au minimum."
     override val overlayHapticIntensity get() = "Intensité du retour haptique"
+    override val overlayHapticIntensityInfo get() =
+        "La force de chaque vibration. 100 % est une petite impulsion légère ; moins est à peine " +
+            "perceptible, plus est une tape franche.\n\nTous les téléphones ne savent pas doser " +
+            "leur vibration. Sur un téléphone qui ne sait pas, le réglage sert quand même : il " +
+            "passe par les touches légère, moyenne et franche du téléphone au lieu de varier en " +
+            "continu.\n\nFaites glisser le curseur : un échantillon se fait sentir à chaque " +
+            "cran, pour régler au toucher."
 
     override val overlayPreview get() = "Aperçu"
     override val overlayGrantToPreview get() = "Autorisez la superposition pour l'aperçu"
@@ -200,6 +229,24 @@ object FrenchStrings : Strings() {
     override val editColoursHint get() =
         "Le panneau s'ouvre par-dessus votre écran — touchez une de ses parties (ou un échantillon), " +
             "réglez la couleur, puis enregistrez ou annulez."
+
+    override val editRestoreDefaults get() = "Rétablir les valeurs par défaut"
+    override val editRestoreDefaultsHint get() =
+        "Annule vos modifications sur ce style. La position et les couleurs se rétablissent " +
+            "séparément, et aucun autre style n'est touché."
+    override val editRestorePosition get() = "Rétablir la position par défaut"
+    override val editRestoreColours get() = "Rétablir les couleurs par défaut"
+
+    override fun editRestorePositionBody(style: String) =
+        "Replacer tous les panneaux $style là où ils s'ancrent par défaut, en portrait " +
+            "comme en paysage ? Ses couleurs sont conservées."
+    override fun editRestoreColoursBody(style: String) =
+        "Remettre toutes les couleurs de $style à celles fournies avec ce style ? " +
+            "L'emplacement que vous lui avez donné est conservé."
+    override val editRestoreConfirm get() = "Rétablir"
+
+    override fun editRestoredPosition(style: String) = "Position de $style rétablie"
+    override fun editRestoredColours(style: String) = "Couleurs de $style rétablies"
 
     override val editWhichLayout get() = "Quelle orientation ?"
     override val editWhichLayoutBody get() =

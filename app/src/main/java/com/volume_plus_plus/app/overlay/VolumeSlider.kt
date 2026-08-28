@@ -96,9 +96,14 @@ class VolumeSlider(
      * editor's drag / colour-tap layer can still handle it.
      */
     private val interactive: Boolean = true,
-    /** Scale factor for the faster part of the held-volume glide (1 = current default). */
+    /**
+     * Scale factor for the faster part of the held-volume glide — the stretch while the fill is
+     * still chasing a level more than 8% away (1 = current default, 0.5–2 from the Motion setting).
+     * Only the *animation* is scaled: the volume itself is already at the new level.
+     */
     private val motionFollowScale: Float = 1f,
-    /** Scale factor for the final settle once the glide is close to target (1 = current default). */
+    /** Scale factor for the final settle, once the glide is within 8% of the target and easing to a
+     *  stop (1 = current default). */
     private val motionSettleScale: Float = 1f,
     private val onLevelChange: (Float) -> Unit,
     private val onTouchStart: () -> Unit,
@@ -127,23 +132,41 @@ class VolumeSlider(
             if (distance <= 0.001f) {
                 drawnLevel = targetLevel
                 levelGlideActive = false
+                settlingLevel = false
                 invalidate()
                 return
             }
             val gain = when {
+                // Chasing a finger is its own case: one gain, scaled by the follow setting, so 200%
+                // pins the bar to the finger and 50% trails it smoothly behind.
+                draggingLevel -> DRAG_FOLLOW_GAIN
                 distance > 0.35f -> 0.52f
                 distance > 0.20f -> 0.40f
                 distance > 0.08f -> 0.30f
                 else -> 0.20f
             }
-            val scale = if (distance > 0.08f) motionFollowScale else motionSettleScale
-            drawnLevel += diff * gain * scale
+            val scale = when {
+                draggingLevel -> motionFollowScale
+                // Closing the gap the finger left behind, once it has lifted.
+                settlingLevel -> motionSettleScale
+                // Key-driven glides have no finger to follow, so they split by how far is left: the
+                // long stretch is the follow, the last of it is the settle.
+                distance > 0.08f -> motionFollowScale
+                else -> motionSettleScale
+            }
+            // Never travel further than what's left: at a 200% follow the largest gain would other-
+            // wise step past the target and have to swing back, which reads as a wobble.
+            drawnLevel += (diff * gain * scale).coerceIn(-distance, distance)
             if (abs(targetLevel - drawnLevel) <= 0.0005f) drawnLevel = targetLevel
             invalidate()
             if (drawnLevel != targetLevel) postOnAnimation(this) else levelGlideActive = false
         }
     }
     private var draggingLevel = false
+
+    /** True between a finger lifting and the bar coming to rest on the level it left — the stretch
+     *  [motionSettleScale] governs. */
+    private var settlingLevel = false
 
     /**
      * 0 = label fully shown … 1 = label fully faded (dragging). Kept separate from [dragProgress] so
@@ -708,8 +731,7 @@ class VolumeSlider(
 
     private fun beginDrag() {
         draggingLevel = true
-        levelGlideActive = false
-        removeCallbacks(levelGlideRunnable)
+        settlingLevel = false
         dragging = true
         invalidate()
         onTouchStart()
@@ -723,6 +745,12 @@ class VolumeSlider(
     private fun finishDrag() {
         draggingLevel = false
         dragging = false
+        // Whatever gap the follow left between the bar and where the finger lifted is now closed at
+        // the settle speed.
+        if (drawnLevel != targetLevel) {
+            settlingLevel = true
+            setLevelInternal(targetLevel, animate = true)
+        }
         invalidate()
         onTouchEnd()
         onDragStateChange?.invoke(false)
@@ -781,8 +809,11 @@ class VolumeSlider(
             else -> event.x / width
         }
         val clamped = newLevel.coerceIn(0f, 1f)
-        if (clamped != level) {
-            setLevelInternal(clamped, animate = false)
+        // Compared against the target, not the drawn level: the bar is allowed to trail behind the
+        // finger, and the volume itself must still follow the finger exactly — only the drawing is
+        // smoothed.
+        if (clamped != targetLevel) {
+            setLevelInternal(clamped, animate = true)
             onLevelChange(clamped)
         }
     }
@@ -790,7 +821,10 @@ class VolumeSlider(
     private fun setLevelInternal(target: Float, animate: Boolean) {
         targetLevel = target
         if (target == drawnLevel && !levelGlideActive) return
-        if (!animate || !isAttachedToWindow || !(pillLabel || capsule)) {
+        // Every render glides, so the Motion settings reach all nine styles — the thin-track Android
+        // 7–11 rows included, not just the 12–15 capsule/pill ones. A slider that isn't attached yet
+        // (a panel being built) still snaps: there's nothing on screen to animate from.
+        if (!animate || !isAttachedToWindow) {
             levelGlideActive = false
             removeCallbacks(levelGlideRunnable)
             drawnLevel = target
@@ -805,5 +839,10 @@ class VolumeSlider(
 
     private companion object {
         const val ICON_DP = 24f
+
+        /** How much of the remaining distance to the finger the bar covers each frame at a 100%
+         *  follow speed. 200% doubles it to 1 — the bar sits exactly under the finger — and 50%
+         *  halves it into a visible, smooth trail. */
+        const val DRAG_FOLLOW_GAIN = 0.5f
     }
 }
