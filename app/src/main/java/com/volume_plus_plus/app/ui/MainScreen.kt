@@ -111,6 +111,7 @@ fun MainScreen(
             )
             Tab.OVERLAY -> OverlayScreen(
                 contentPadding = padding,
+                snackbar = snackbar,
                 highlightSystemVolumeSwitch = highlightSystemVolumeSwitch,
                 onHighlightShown = { highlightSystemVolumeSwitch = false },
             )
