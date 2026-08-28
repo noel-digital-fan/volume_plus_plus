@@ -55,6 +55,36 @@ class UserService() : IUserService.Stub() {
     }
 
     /**
+     * Re-register this app's own package as if it came from [installerPackage] (e.g.
+     * "com.android.vending", the Play Store), by reinstalling its current APK(s) in place with the
+     * installer set accordingly. That is what clears the "installed from an unofficial app store"
+     * flag banking apps raise against a GitHub-sideloaded build.
+     *
+     * The reinstall is a same-signature, same-version in-place update (`-r`), so app data, granted
+     * permissions and the enabled accessibility service all survive — nothing is lost, and a failed
+     * install rolls back leaving the existing app untouched. `-t` lets a debug/test-signed build
+     * reinstall too. The paths come straight from `pm path`, which lists the base APK and every
+     * split, so the whole current set is replayed as one complete session.
+     *
+     * The platform kills this app's UI process the moment the base update commits (expected); this
+     * privileged process runs under a different UID and stays up to see the command through.
+     */
+    override fun setInstallerSource(installerPackage: String): String {
+        val pkg = context?.packageName ?: return "ERROR: no context"
+        val apks = runCommand(arrayOf("pm", "path", pkg))
+            .lineSequence()
+            .map { it.trim() }
+            .filter { it.startsWith("package:") }
+            .map { it.removePrefix("package:") }
+            .filter { it.isNotEmpty() }
+            .toList()
+        if (apks.isEmpty()) return "ERROR: no APK path for $pkg"
+        val verb = if (apks.size > 1) "install-multiple" else "install"
+        val cmd = arrayOf("pm", verb, "-r", "-t", "-i", installerPackage) + apks
+        return runCommand(cmd)
+    }
+
+    /**
      * Enumerates active playback via the public [AudioManager.getActivePlaybackConfigurations],
      * then reflects the hidden per-config accessors (piid, client uid) — reachable here because
      * the shell UID is exempt from the non-SDK interface blocklist. Requires Android 8+ (the

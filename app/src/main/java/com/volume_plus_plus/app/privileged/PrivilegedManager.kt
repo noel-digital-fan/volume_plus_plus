@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
 import android.content.pm.PackageManager
+import android.os.Build
 import android.os.IBinder
 import android.os.RemoteException
 import com.topjohnwu.superuser.Shell
@@ -95,6 +96,46 @@ object PrivilegedManager {
 
     /** Package name of the Shizuku app, used to check install state and to launch it. */
     const val PACKAGE_NAME = "moe.shizuku.privileged.api"
+
+    /** The install source [fixInstallSource] claims — the Play Store, the one banking apps trust. */
+    const val PLAY_STORE_INSTALLER = "com.android.vending"
+
+    /**
+     * Install sources that banking apps already treat as "official", so [installSourceRecognised]
+     * leaves them alone. A GitHub download lands outside this set (a browser, a file manager, the
+     * bare package installer, or nothing at all), which is exactly the case [fixInstallSource]
+     * exists to correct.
+     */
+    private val OFFICIAL_INSTALLERS = setOf(
+        PLAY_STORE_INSTALLER,               // Google Play
+        "com.android.vending",
+        "com.google.android.feedback",      // some builds record Play updates under this
+        "com.sec.android.app.samsungapps",  // Samsung Galaxy Store
+        "com.samsung.android.galaxyapps",
+        "com.amazon.venezia",               // Amazon Appstore
+        "com.huawei.appmarket",             // Huawei AppGallery
+    )
+
+    /**
+     * Whether this app's recorded install source is one a banking app would accept, read from the
+     * app's own [Context] with no privilege needed. False for a sideloaded (GitHub) install — a
+     * browser, a file manager, the bare package installer, or a null source (an `adb`/Studio
+     * install) — which is the signal to offer [fixInstallSource]. Reads as recognised only if the
+     * install-source API itself throws, so a device whose API misbehaves is never nagged with a fix
+     * it may not need.
+     */
+    fun installSourceRecognised(context: Context): Boolean {
+        val installer = runCatching {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                context.packageManager.getInstallSourceInfo(context.packageName)
+                    .installingPackageName
+            } else {
+                @Suppress("DEPRECATION")
+                context.packageManager.getInstallerPackageName(context.packageName)
+            }
+        }.getOrElse { return true }
+        return installer != null && installer in OFFICIAL_INSTALLERS
+    }
 
     /** Where a `su` binary sits on the roots that still put one on the filesystem. */
     private val SU_PATHS = listOf(
@@ -468,8 +509,8 @@ object PrivilegedManager {
             .processNameSuffix("mixaudio")
             .debuggable(false)
             // Bump whenever UserService's interface changes so Shizuku restarts a fresh service
-            // instead of reusing a cached older one (v4 adds setRingerMode).
-            .version(4)
+            // instead of reusing a cached older one (v5 adds setInstallerSource).
+            .version(5)
 
     private val connection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
@@ -594,6 +635,30 @@ object PrivilegedManager {
             try {
                 svc.setRingerMode(mode)
                 true
+            } catch (e: RemoteException) {
+                false
+            }
+        }
+
+    /**
+     * Re-register Volume++ as a Play Store install, clearing the "unofficial app store" flag that
+     * banking apps raise against a GitHub-sideloaded build. Reinstalls in place, so every setting,
+     * permission and the accessibility service survive. Needs the privileged service bound —
+     * either backend will do.
+     *
+     * The reinstall's commit kills this app's UI process before the call can return, so a `true`
+     * result is the exception rather than the rule: normally the process is gone and the caller
+     * never sees an answer at all. That's the expected success path — the relabel still lands in
+     * the privileged process, and it's the next launch's [installSourceRecognised] check that
+     * confirms it. A caught [RemoteException] (the binder dropping as we're torn down) is therefore
+     * reported as `false` only so a device that somehow *doesn't* kill us doesn't wrongly claim
+     * success; the launch-time check is the real source of truth either way.
+     */
+    suspend fun fixInstallSource(): Boolean =
+        withContext(Dispatchers.IO) {
+            val svc = service ?: return@withContext false
+            try {
+                svc.setInstallerSource(PLAY_STORE_INSTALLER).contains("Success", ignoreCase = true)
             } catch (e: RemoteException) {
                 false
             }
