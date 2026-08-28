@@ -6,6 +6,8 @@ import com.volume_plus_plus.app.overlay.OverlayVersion
 import com.volume_plus_plus.app.overlay.PanelColors
 import com.volume_plus_plus.app.overlay.PanelOffset
 import com.volume_plus_plus.app.overlay.VersionCustomization
+import com.volume_plus_plus.app.overlay.withDefaultColors
+import com.volume_plus_plus.app.overlay.withDefaultOffsets
 import org.json.JSONObject
 
 /**
@@ -32,6 +34,25 @@ class OverlayCustomizationPrefs(context: Context) {
     /** Drop [version]'s customization entirely, restoring the untouched skin defaults. */
     fun clear(version: OverlayVersion) {
         prefs.edit().remove(version.name).apply()
+    }
+
+    /**
+     * Put [version]'s panels back at their default docked spots — every component, in both
+     * orientations — keeping whatever colours it has.
+     */
+    fun restoreDefaultPosition(version: OverlayVersion) = update(version) { it.withDefaultOffsets() }
+
+    /** Drop [version]'s colour overrides — every component — keeping where it has been positioned. */
+    fun restoreDefaultColors(version: OverlayVersion) = update(version) { it.withDefaultColors() }
+
+    /** Store [transform]ed, falling back to [clear] once nothing is customized, so a version restored
+     *  all the way back to stock stores nothing again. */
+    private fun update(
+        version: OverlayVersion,
+        transform: (VersionCustomization) -> VersionCustomization,
+    ) {
+        val updated = transform(getFor(version))
+        if (updated == VersionCustomization()) clear(version) else setFor(version, updated)
     }
 
     // ── (de)serialisation ─────────────────────────────────────────────────────────────────────────
