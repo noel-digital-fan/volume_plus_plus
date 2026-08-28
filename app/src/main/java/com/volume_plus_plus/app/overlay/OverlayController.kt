@@ -21,7 +21,6 @@ import android.os.Handler
 import android.os.Looper
 import android.os.VibrationEffect
 import android.os.Vibrator
-import android.os.VibratorManager
 import android.provider.Settings
 import android.util.DisplayMetrics
 import android.view.Gravity
@@ -107,16 +106,36 @@ class OverlayController(
         context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
     private val notificationManager =
         context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-    private val vibrator: Vibrator by lazy {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            (context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager).defaultVibrator
-        } else {
-            @Suppress("DEPRECATION")
-            context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
-        }
-    }
+    private val vibrator: Vibrator by lazy { StepHaptics.vibrator(context) }
     private val prefs = OverlayPrefs(context)
     private val customizationPrefs = OverlayCustomizationPrefs(context)
+
+    /**
+     * The volume step each slider last settled on, keyed by stream (and by package for the per-app
+     * rows), so dragging ticks once per step it crosses rather than on every touch move. A slider's
+     * first move after the panel opens never ticks — there's no step crossing to report yet.
+     */
+    private val hapticSteps = mutableMapOf<String, Int>()
+
+    /**
+     * One step tick while a slider is dragged, the same buzz a held volume key gives. Silent unless
+     * the drag actually crossed into a new volume step, and silent while the step haptic setting is
+     * off. [key] separates the sliders (a stream, or an app's package) so they each track their own
+     * last step.
+     */
+    private fun dragHaptic(key: String, step: Int) {
+        val previous = hapticSteps.put(key, step)
+        if (previous == null || previous == step) return
+        if (!prefs.isHoldStepHapticsEnabled()) return
+        StepHaptics.play(vibrator, prefs.getHoldStepHapticIntensity())
+    }
+
+    /** Per-app volumes are a continuous 0..1 with no steps of their own, so they borrow the media
+     *  stream's step count and tick on the same granularity as every other row. */
+    private fun appDragHaptic(pkg: String, level: Float) {
+        val steps = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
+        dragHaptic(pkg, (level * steps).roundToInt().coerceIn(0, steps))
+    }
     private val handler = Handler(Looper.getMainLooper())
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
@@ -291,22 +310,38 @@ class OverlayController(
         val piids: List<Int>,
     )
 
-    /** Nudge the media stream in [direction] (+1 up, -1 down), then show/refresh the panel. */
+    /**
+     * Nudge the media stream in [direction] (+1 up, -1 down), then show/refresh the panel. Returns
+     * whether the step actually moves the volume — false only at the ends of the range — which is
+     * what the held-key step haptic is gated on.
+     *
+     * That answer is worked out from the level read *before* the write, deliberately: the platform
+     * applies [AudioManager.adjustStreamVolume] on its own thread and only then invalidates the
+     * cached stream volume, so reading the level straight back is a race that usually still reports
+     * the old value. At the 40–150 ms cadence of a held key it loses that race nearly every time,
+     * which silently suppressed the step haptic for the whole hold.
+     */
     fun adjustAndShow(direction: Int): Boolean {
         val dir = if (direction >= 0) AudioManager.ADJUST_RAISE else AudioManager.ADJUST_LOWER
         val before = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+        val max = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+        val min = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            audioManager.getStreamMinVolume(AudioManager.STREAM_MUSIC)
+        } else {
+            0
+        }
+        val changed = if (direction >= 0) before < max else before > min
         // No FLAG_SHOW_UI: we suppress the system panel and render our own instead.
         runCatching { audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC, dir, 0) }
-        val changed = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC) != before
         val slider = mediaSlider
         if (root != null && !dismissing && slider != null) {
             // Already visible: reflect the new level on the existing slider and keep the panel alive,
             // without re-rendering. Rebuilding on every key press makes the panel flicker and, in the
             // Sound sheet, resets the scroll position and re-queries the app list.
-            val max = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
-            val currentStep = (slider.level * max).roundToInt().coerceIn(0, max)
-            val nextStep = (currentStep + if (direction >= 0) 1 else -1).coerceIn(0, max)
-            slider.level = nextStep / max.toFloat()
+            val steps = max.coerceAtLeast(1)
+            val currentStep = (slider.level * steps).roundToInt().coerceIn(0, steps)
+            val nextStep = (currentStep + if (direction >= 0) 1 else -1).coerceIn(0, steps)
+            slider.level = nextStep / steps.toFloat()
             // Reconcile with the system-reported level after the write to stay correct if the platform
             // clamps or ignores a step change.
             slider.post { slider.level = streamLevel(AudioManager.STREAM_MUSIC) }
@@ -1401,6 +1436,7 @@ class OverlayController(
             // Android 7 rows are icon-only, so app rows drop their name label too.
             val label = if (isSeven()) null else app.label
             makeSlider(app.icon, glyph = null, label, ChevronDir.NONE, onChevron = {}, pressedHalo = true) { level ->
+                appDragHaptic(app.pkg, level)
                 appVolume.setVolume(app.pkg, level, app.piids)
             }.apply {
                 // Start at the level remembered for this playback session (full for a fresh one).
@@ -1698,7 +1734,10 @@ class OverlayController(
                 icon = null, glyph = null, label = null, chevron = ChevronDir.NONE, onChevron = {},
                 orientation = SliderOrientation.HORIZONTAL, fill = true, reserveTrailing = false,
                 render = SliderRender.LINE_THUMB,
-            ) { level -> appVolume.setVolume(app.pkg, level, app.piids) }
+            ) { level ->
+                appDragHaptic(app.pkg, level)
+                appVolume.setVolume(app.pkg, level, app.piids)
+            }
                 .apply { level = appVolume.volumeFor(app.pkg) }
             val icon = ImageView(context).apply { setImageDrawable(app.icon) }
             val row = row911(icon, app.label, slider)
@@ -2037,7 +2076,10 @@ class OverlayController(
                 icon = app.icon, glyph = null, label = app.label, chevron = ChevronDir.NONE, onChevron = {},
                 orientation = SliderOrientation.HORIZONTAL, fill = true, reserveTrailing = false,
                 render = SliderRender.PILL_LABEL, recolorIcon = false, // keep full-colour app icons
-            ) { level -> appVolume.setVolume(app.pkg, level, app.piids) }
+            ) { level ->
+                appDragHaptic(app.pkg, level)
+                appVolume.setVolume(app.pkg, level, app.piids)
+            }
                 .apply {
                     level = appVolume.volumeFor(app.pkg)
                     layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(52))
@@ -2700,6 +2742,10 @@ class OverlayController(
         liveEdit?.let { it.streamLevels[streamType] = level.coerceIn(0f, 1f); return level.coerceIn(0f, 1f) }
         val max = audioManager.getStreamMaxVolume(streamType).coerceAtLeast(1)
         val target = (level * max).roundToInt().coerceIn(0, max)
+        // Before the write, so the buzz lands with the finger rather than after the platform has
+        // been round-tripped. Every skin's stream sliders funnel through here, so this is the one
+        // place that gives all nine styles the same drag feedback.
+        dragHaptic(streamType.toString(), target)
         runCatching { audioManager.setStreamVolume(streamType, target, 0) }
         // Combined "Ring & notification" rows drive notification alongside ring; the Android 14 icon
         // set (separate sliders) leaves them independent.
