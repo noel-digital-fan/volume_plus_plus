@@ -16,8 +16,8 @@ android {
         minSdk = 24
         targetSdk = 36
         // The app's one version. Bump it here; app code reads it back through AppConfig.
-        versionCode = 3
-        versionName = "1.1.3"
+        versionCode = 4
+        versionName = "1.1.5"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
