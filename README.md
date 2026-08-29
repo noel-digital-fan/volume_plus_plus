@@ -10,10 +10,10 @@ the user.
   <img src="docs/screenshots/app-overlay-setup.png" width="240" alt="Overlay tab">
 </p>
 
-<p align="center">
-  <a href="https://play.google.com/store/apps/details?id=com.alarmplusplus.app"><img src="docs/screenshots/alarm-plus-plus-icon.png" width="20" align="absmiddle" alt="Alarm++ icon"></a>
-  <sub>Also by me: <b>Alarm++</b> — an alarm clock that wakes you with your own videos.</sub>
-  <a href="https://play.google.com/store/apps/details?id=com.alarmplusplus.app"><img src="docs/screenshots/google-play-badge.png" height="24" align="absmiddle" alt="Get it on Google Play"></a>
+<p>
+  <a href="https://play.google.com/store/apps/details?id=com.alarmplusplus.app"><img src="docs/screenshots/alarm-plus-plus-icon.png" width="28" align="absmiddle" alt="Alarm++ icon"></a>
+  Also by me: <a href="https://play.google.com/store/apps/details?id=com.alarmplusplus.app"><b>Alarm++</b></a> — an alarm clock that wakes you with your own videos.
+  <a href="https://play.google.com/store/apps/details?id=com.alarmplusplus.app"><img src="docs/screenshots/google-play-badge.png" height="32" align="absmiddle" alt="Get it on Google Play"></a>
 </p>
 
 ## What it does
