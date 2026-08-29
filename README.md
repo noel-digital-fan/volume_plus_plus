@@ -11,9 +11,9 @@ the user.
 </p>
 
 <p>
-  <a href="https://play.google.com/store/apps/details?id=com.alarmplusplus.app"><img src="docs/screenshots/alarm-plus-plus-icon.png" width="28" align="absmiddle" alt="Alarm++ icon"></a>
+  <a href="https://play.google.com/store/apps/details?id=com.alarmplusplus.app"><img src="docs/screenshots/alarm-plus-plus-icon.png" width="32" align="absmiddle" alt="Alarm++ icon"></a>
   Also by me: <a href="https://play.google.com/store/apps/details?id=com.alarmplusplus.app"><b>Alarm++</b></a> — an alarm clock that wakes you with your own videos.
-  <a href="https://play.google.com/store/apps/details?id=com.alarmplusplus.app"><img src="docs/screenshots/google-play-badge.png" height="32" align="absmiddle" alt="Get it on Google Play"></a>
+  <a href="https://play.google.com/store/apps/details?id=com.alarmplusplus.app"><img src="docs/screenshots/google-play-badge.png" height="40" align="absmiddle" alt="Get it on Google Play"></a>
 </p>
 
 ## What it does
