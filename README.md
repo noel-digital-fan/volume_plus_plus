@@ -10,6 +10,27 @@ the user.
   <img src="docs/screenshots/app-overlay-setup.png" width="240" alt="Overlay tab">
 </p>
 
+<table>
+  <tr>
+    <td width="90" align="center" valign="middle">
+      <a href="https://play.google.com/store/apps/details?id=com.alarmplusplus.app">
+        <img src="docs/screenshots/alarm-plus-plus-icon.png" width="66" alt="Alarm++ icon">
+      </a>
+    </td>
+    <td valign="middle">
+      <b>Also by me — <a href="https://play.google.com/store/apps/details?id=com.alarmplusplus.app">Alarm++ · Video Clock Alarm</a></b><br>
+      Wake up to a video from your own library, playing full-screen behind the time, with its own
+      soundtrack as the alarm. Plus shuffle playlists, a 440-city world clock with alarms anchored
+      to a city, and a timer and stopwatch.
+    </td>
+    <td width="190" align="center" valign="middle">
+      <a href="https://play.google.com/store/apps/details?id=com.alarmplusplus.app">
+        <img src="docs/screenshots/google-play-badge.png" height="46" alt="Get it on Google Play">
+      </a>
+    </td>
+  </tr>
+</table>
+
 ## What it does
 
 Android's real volume panel is a single, fixed UI tied to whatever version of Android you're
@@ -87,6 +108,12 @@ One switch per app: turn it on and that app keeps playing when something else st
 needs a privileged helper — **Shizuku or root** — and walks you through whichever one you pick
 with a checklist that ticks itself off as you go.
 
+It also carries the fix for a side effect of sideloading: a build installed from GitHub records
+whichever browser or file manager opened it as its install source, which some banking apps flag as
+an "unofficial app store". One tap has the privileged helper reinstall the same APK in place with
+Google Play recorded as the installer — app data, granted permissions and the accessibility
+service all survive. The card only appears while the source still looks sideloaded.
+
 |                       Setup checklist                        |                        App list                        |
 | :----------------------------------------------------------: | :----------------------------------------------------: |
 | <img src="docs/screenshots/app-mixing-setup.png" width="260"> | <img src="docs/screenshots/app-mixing.png" width="260"> |
@@ -94,8 +121,9 @@ with a checklist that ticks itself off as you go.
 ### Overlay
 
 Where the panel is set up and styled: the three permission grants, the switch that hands the
-volume keys back to Android, the style picker (Android 7 → 15, each with its own editor), and the
-motion and haptics settings.
+volume keys back to Android, the style picker (Android 7 → 15, each with its own editor), the
+motion and haptics settings, and an option to point the panel's SETTINGS / SEE MORE button at
+Volume++ instead of Android's Sound settings.
 
 |                        Permissions                         |                          Styles                           |                        Motion & haptics                    |
 | :--------------------------------------------------------: | :-------------------------------------------------------: | :--------------------------------------------------------: |
@@ -179,9 +207,14 @@ replaces the system panel and controls the ordinary system streams.
 ## Motion, haptics and the ringer
 
 - **Motion** — two sliders (50–200%) scale the panel's easing while a volume key is held: how fast
-  it *follows* your presses, and how softly it *settles* afterwards. 100% is the stock feel.
-- **Haptics** — an optional light tap on each repeated volume step while you hold the key, with
-  its own intensity slider (50–200%).
+  it *follows* your presses, and how softly it *settles* afterwards. 100% is the stock feel. The
+  same glide runs on all nine skins, and dragging a slider trails your finger by a tuned amount
+  rather than snapping to it, settling smoothly once you let go.
+- **Haptics** — an optional light tap on every volume step, whether the step came from holding a
+  key or from dragging a slider, with its own intensity slider (50–200%) that plays a live sample
+  as you move it.
+- **ⓘ on every setting** — each motion and haptics control carries an info button explaining, in
+  plain language, what it changes.
 - **Silent doesn't drag Do Not Disturb along.** On the Android 9–15 panels, choosing silent mutes
   the ringer and notification volume and leaves Do Not Disturb exactly where it was — the
   framework's usual "external" ringer path switches DND on unconditionally, so Volume++ routes
@@ -205,6 +238,23 @@ Translations are plain Kotlin files with a per-key English fallback, so a partia
 perfectly usable — adding a language is two edits, documented in [docs/TRANSLATING.md](docs/TRANSLATING.md).
 
 ## Release history
+
+### 1.1.5
+
+- **Restore defaults** in each style's edit hub — **Restore default position** and **Restore
+  default colours**, each confirmed before it runs and reported back with a snackbar, and each
+  undoing only its own half.
+- **ⓘ explanations** on every motion and haptics setting, and the haptic intensity slider now
+  plays a live sample as you drag it.
+- **Smoother sliders everywhere** — the held-key glide runs on all nine skins instead of just the
+  Android 12–15 ones, and dragging trails your finger rather than snapping to it, settling once
+  released.
+- **Step haptics on slider drags too**, not just held keys, plus a fix for a race that silently
+  suppressed the held-key tap for the whole hold.
+- **Point the panel's SETTINGS / SEE MORE button at Volume++** instead of Android's Sound
+  settings — off by default, offered on the Android 9–15 styles.
+- **Fix for banking apps flagging Volume++ as an unofficial install**, by relabelling a sideloaded
+  build's install source in place.
 
 ### 1.1.3
 
@@ -240,9 +290,12 @@ perfectly usable — adding a language is two edits, documented in [docs/TRANSLA
 - **`PrivilegedManager` / `UserService`** — the single entry point for everything privileged. It
   gets a privileged process going through Shizuku (shell UID) or libsu (root), binds the same
   `IUserService` inside either one, and exposes the calls the app's own UID isn't allowed to make:
-  `appops set <pkg> TAKE_AUDIO_FOCUS …`, the internal ringer-mode setter, and hidden
-  `AudioManager`/`AudioPlaybackConfiguration` APIs for per-player volume, activity and process
-  liveness.
+  `appops set <pkg> TAKE_AUDIO_FOCUS …`, the internal ringer-mode setter, the in-place
+  `pm install -r -t -i com.android.vending` reinstall that relabels a sideloaded install source,
+  and hidden `AudioManager`/`AudioPlaybackConfiguration` APIs for per-player volume, activity and
+  process liveness.
+- **`StepHaptics`** — the one tuned buzz behind every volume step, shared by the held-key repeat
+  and by slider drags so both feel identical at any intensity.
 - **`ScreenColorPicker` / `ColorPickService`** — the eyedropper. A `mediaProjection` foreground
   service holds the capture session open while the user goes hunting for a colour in another app;
   the grabbed frame is frozen under a magnifier loupe for the actual pick.
@@ -300,6 +353,12 @@ from the command line with the wrapper above.
 
 Adding a language is two edits and needs no build-system changes — see
 [docs/TRANSLATING.md](docs/TRANSLATING.md).
+
+## AI disclosure
+
+AI-assisted development tools were used in building this app — for writing and refactoring code,
+and for parts of this documentation. The design decisions, the testing on real devices, and the
+final review of everything that shipped are the author's own.
 
 ## License
 
