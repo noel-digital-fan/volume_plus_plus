@@ -19,9 +19,8 @@ the user.
     </td>
     <td valign="middle">
       <b>Also by me — <a href="https://play.google.com/store/apps/details?id=com.alarmplusplus.app">Alarm++ · Video Clock Alarm</a></b><br>
-      Wake up to a video from your own library, playing full-screen behind the time, with its own
-      soundtrack as the alarm. Plus shuffle playlists, a 440-city world clock with alarms anchored
-      to a city, and a timer and stopwatch.
+      An alarm clock that wakes you with your own videos, playing full-screen behind the time.
+      Plus shuffle playlists, a world clock, timer and stopwatch.
     </td>
     <td width="190" align="center" valign="middle">
       <a href="https://play.google.com/store/apps/details?id=com.alarmplusplus.app">
