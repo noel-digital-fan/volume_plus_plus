@@ -10,25 +10,11 @@ the user.
   <img src="docs/screenshots/app-overlay-setup.png" width="240" alt="Overlay tab">
 </p>
 
-<table>
-  <tr>
-    <td width="90" align="center" valign="middle">
-      <a href="https://play.google.com/store/apps/details?id=com.alarmplusplus.app">
-        <img src="docs/screenshots/alarm-plus-plus-icon.png" width="66" alt="Alarm++ icon">
-      </a>
-    </td>
-    <td valign="middle">
-      <b>Also by me — <a href="https://play.google.com/store/apps/details?id=com.alarmplusplus.app">Alarm++ · Video Clock Alarm</a></b><br>
-      An alarm clock that wakes you with your own videos, playing full-screen behind the time.
-      Plus shuffle playlists, a world clock, timer and stopwatch.
-    </td>
-    <td width="190" align="center" valign="middle">
-      <a href="https://play.google.com/store/apps/details?id=com.alarmplusplus.app">
-        <img src="docs/screenshots/google-play-badge.png" height="46" alt="Get it on Google Play">
-      </a>
-    </td>
-  </tr>
-</table>
+<p align="center">
+  <a href="https://play.google.com/store/apps/details?id=com.alarmplusplus.app"><img src="docs/screenshots/alarm-plus-plus-icon.png" width="20" align="absmiddle" alt="Alarm++ icon"></a>
+  <sub>Also by me: <b>Alarm++</b> — an alarm clock that wakes you with your own videos.</sub>
+  <a href="https://play.google.com/store/apps/details?id=com.alarmplusplus.app"><img src="docs/screenshots/google-play-badge.png" height="24" align="absmiddle" alt="Get it on Google Play"></a>
+</p>
 
 ## What it does
 
