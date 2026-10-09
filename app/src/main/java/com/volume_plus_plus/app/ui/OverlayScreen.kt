@@ -183,6 +183,7 @@ private fun OverlaySetup(
     var version by remember { mutableStateOf(OverlayVersion.current(prefs)) }
     var systemVolumePanel by remember { mutableStateOf(prefs.isSystemVolumePanelEnabled()) }
     var settingsOpensApp by remember { mutableStateOf(prefs.isSettingsOpensAppEnabled()) }
+    var openExpanded by remember { mutableStateOf(prefs.isOpenExpandedEnabled()) }
     var appsFirst by remember { mutableStateOf(prefs.isAppsFirstEnabled()) }
     var liveCaptionButton by remember { mutableStateOf(prefs.isLiveCaptionButtonEnabled()) }
     val hasLiveCaption = remember { liveCaptionAvailable(context) }
@@ -222,6 +223,7 @@ private fun OverlaySetup(
     LifecycleResumeEffect(Unit) {
         systemVolumePanel = prefs.isSystemVolumePanelEnabled()
         settingsOpensApp = prefs.isSettingsOpensAppEnabled()
+        openExpanded = prefs.isOpenExpandedEnabled()
         appsFirst = prefs.isAppsFirstEnabled()
         liveCaptionButton = prefs.isLiveCaptionButtonEnabled()
         rememberAppVolumes = prefs.isRememberAppVolumesEnabled()
@@ -363,6 +365,18 @@ private fun OverlaySetup(
                 },
             )
         }
+        // Applies to every skin — the 7–8 panel expands in place rather than into a sheet, but a
+        // first press can still open it with every row already showing.
+        SettingSwitch(
+            title = s.overlayOpenExpanded,
+            subtitle = s.overlayOpenExpandedDetail,
+            checked = openExpanded,
+            enabled = styleEnabled,
+            onCheckedChange = {
+                openExpanded = it
+                prefs.setOpenExpandedEnabled(it)
+            },
+        )
         // Applies to every skin: each renderer places its per-app box relative to the stream rows.
         SettingSwitch(
             title = s.overlayAppsFirst,

@@ -223,6 +223,11 @@ open class Strings {
         "The panel's SETTINGS / SEE MORE button opens Volume++ instead of Android's sound " +
             "settings."
 
+    open val overlayOpenExpanded get() = "Open the panel expanded"
+    open val overlayOpenExpandedDetail get() =
+        "A first volume-key press opens the full sheet — every stream and a slider per playing " +
+            "app — instead of the compact panel."
+
     open val overlayAppsFirst get() = "App sliders first"
     open val overlayAppsFirstDetail get() =
         "In the expanded sheet, sliders for playing apps sit above the Media/Ring/Alarm " +

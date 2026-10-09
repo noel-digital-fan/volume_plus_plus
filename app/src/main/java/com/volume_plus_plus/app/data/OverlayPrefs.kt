@@ -103,6 +103,17 @@ class OverlayPrefs(context: Context) {
     }
 
     /**
+     * Whether a first volume-key press opens the panel straight into its expanded sheet — every
+     * stream plus one slider per playing app — instead of the compact panel stock reopens with.
+     * Off by default: the skins reproduce the stock panels, and those reopen collapsed.
+     */
+    fun isOpenExpandedEnabled(): Boolean = prefs.getBoolean(KEY_OPEN_EXPANDED, false)
+
+    fun setOpenExpandedEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_OPEN_EXPANDED, enabled).apply()
+    }
+
+    /**
      * Whether the expanded sheet lists a slider per playing app above the stream rows rather
      * than below them. Off by default, matching the stock order (streams first).
      */
@@ -159,6 +170,7 @@ class OverlayPrefs(context: Context) {
         const val KEY_SEVEN_EIGHT_VERSION = "seven_eight_version"
         const val KEY_SYSTEM_VOLUME_PANEL = "system_volume_panel"
         const val KEY_SETTINGS_OPENS_APP = "settings_opens_app"
+        const val KEY_OPEN_EXPANDED = "open_expanded"
         const val KEY_LIVE_CAPTION_BUTTON = "live_caption_button"
         const val KEY_APPS_FIRST = "apps_first"
         const val KEY_REMEMBER_APP_VOLUMES = "remember_app_volumes"

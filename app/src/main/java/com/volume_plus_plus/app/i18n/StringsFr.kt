@@ -170,6 +170,11 @@ object FrenchStrings : Strings() {
         "Le bouton PARAMÈTRES / VOIR PLUS du panneau ouvre Volume++ au lieu des " +
             "paramètres de son d'Android."
 
+    override val overlayOpenExpanded get() = "Ouvrir le panneau déplié"
+    override val overlayOpenExpandedDetail get() =
+        "Une première pression sur une touche de volume ouvre le panneau complet — chaque " +
+            "flux et un curseur par application en cours de lecture — au lieu du panneau compact."
+
     override val overlayAppsFirst get() = "Curseurs d'apps en premier"
     override val overlayAppsFirstDetail get() =
         "Dans le panneau déplié, les curseurs des applications en cours de lecture sont " +

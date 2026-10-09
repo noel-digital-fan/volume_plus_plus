@@ -615,6 +615,11 @@ class OverlayController(
             expanded = !it.version.hasExpanded ||
                 it.component == PanelComponent.EXPANDED || it.component == PanelComponent.OUTPUT
         }
+        // "Open the panel expanded" opts a fresh panel out of the stock collapsed reopen: a first
+        // press goes straight to every stream plus the per-app sliders. Editors own [expanded]
+        // themselves above, so the pref must not fight them; and this runs only on a true fresh
+        // show — a press while open refreshes in place without re-expanding.
+        if (preview == null && liveEdit == null && prefs.isOpenExpandedEnabled()) expanded = true
         // Re-read the skin (and current light/dark + customization) each time so changes apply next.
         style = buildStyle()
         render()
