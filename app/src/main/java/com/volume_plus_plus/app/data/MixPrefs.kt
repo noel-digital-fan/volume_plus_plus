@@ -22,6 +22,15 @@ class MixPrefs(context: Context) {
         prefs.edit().putStringSet(KEY_ENABLED, updated).apply()
     }
 
+    /**
+     * Replaces the remembered set wholesale. Used when the real appops state is re-read, so
+     * the mirror is corrected rather than accumulated — a package dropped from the system's
+     * ignore set must drop out of here too.
+     */
+    fun setEnabledPackages(packages: Set<String>) {
+        prefs.edit().putStringSet(KEY_ENABLED, packages).apply()
+    }
+
     /** Whether the user has dismissed the "may be unstable" warning banner. */
     fun isWarningDismissed(): Boolean = prefs.getBoolean(KEY_WARNING_DISMISSED, false)
 

@@ -83,4 +83,13 @@ interface IUserService {
      * Returns "" on success, otherwise a diagnostic beginning with "ERROR".
      */
     String setLoudnessGain(int gainMillibels) = 9;
+
+    /**
+     * Every package whose TAKE_AUDIO_FOCUS app-op is currently set to ignore, read
+     * with a single {@code appops query-op} call. This is the bulk counterpart to
+     * {@link #getAudioFocusMode}: the mixing list is one switch per installed app, so
+     * reconciling its switches against the real op state can't afford one spawned
+     * process per row. Empty list if nothing is ignored or on error.
+     */
+    List<String> getAudioFocusIgnoredPackages() = 10;
 }

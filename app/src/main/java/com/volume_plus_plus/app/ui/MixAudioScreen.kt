@@ -135,6 +135,20 @@ fun MixAudioScreen(
         onPauseOrDispose { }
     }
 
+    // The switches mirror TAKE_AUDIO_FOCUS app-ops, which tools other than this app can also
+    // write (ADB, another privileged volume manager). Render the remembered set right away, then
+    // correct it from the real op state once the service is up and again on every resume — the
+    // prefs stay a cache of last-known-truth, never the record.
+    LaunchedEffect(setup.ready, lifecycleOwner) {
+        if (!setup.ready) return@LaunchedEffect
+        lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            PrivilegedManager.audioFocusIgnoredPackages()?.let { real ->
+                prefs.setEnabledPackages(real)
+                enabled = real
+            }
+        }
+    }
+
     Box(modifier = Modifier.fillMaxSize().padding(contentPadding)) {
         Column(
             modifier = Modifier

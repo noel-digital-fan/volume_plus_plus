@@ -619,6 +619,23 @@ object PrivilegedManager {
         }
 
     /**
+     * Every package whose TAKE_AUDIO_FOCUS op is currently ignored, in a single service
+     * call — the mixing list shows one switch per installed app, so a per-package read
+     * would cost a spawned process per row. Null when the service isn't there or the call
+     * fails, which is deliberately distinct from an empty set ("nothing is ignored"), so
+     * a failed read can't wipe the state a caller was about to trust.
+     */
+    suspend fun audioFocusIgnoredPackages(): Set<String>? =
+        withContext(Dispatchers.IO) {
+            val svc = service ?: return@withContext null
+            try {
+                svc.audioFocusIgnoredPackages?.toSet()
+            } catch (e: RemoteException) {
+                null
+            }
+        }
+
+    /**
      * Set the device ringer mode through the privileged service, which reaches AudioService's
      * internal setter — the system volume panel's own path. Unlike the app's `AudioManager`, that
      * one can select SILENT without the framework turning Do Not Disturb on. [mode] is "NORMAL",
