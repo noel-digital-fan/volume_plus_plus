@@ -171,6 +171,11 @@ object PortugueseStrings : Strings() {
         "O botão CONFIGURAÇÕES / VER MAIS do painel abre o Volume++ em vez das " +
             "configurações de som do Android."
 
+    override val overlayAppsFirst get() = "Controlos de apps primeiro"
+    override val overlayAppsFirstDetail get() =
+        "No painel expandido, os controlos das apps em reprodução ficam acima das linhas " +
+            "de canais em vez de abaixo."
+
     // ── bloco das Configurações rápidas ─────────────────────────────────────────────────────────
 
     override val qsTileLabel get() = "Painel do Volume++"
