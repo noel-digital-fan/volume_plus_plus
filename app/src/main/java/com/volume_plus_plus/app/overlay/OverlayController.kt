@@ -564,7 +564,11 @@ class OverlayController(
         }
         scope.launch {
             val next = captionManager?.isSystemAudioCaptioningEnabled != true
+            // A delivered write retints on the spot; anything else (a bound service still running
+            // code from before this feature existed drops the unknown transaction silently) falls
+            // back to the real toggle rather than leaving a button that does nothing.
             if (PrivilegedManager.setCaptionsEnabled(next)) refreshCaptionButton()
+            else openCaptionSettings()
         }
     }
 
@@ -2040,6 +2044,13 @@ class OverlayController(
         }
         legacyIconRefresh?.invoke()
 
+        // Live Caption gets a centred row of its own under the slider icons — the card is only a
+        // column wide, so splitting the tune footer would squeeze both buttons.
+        makeCaptionButton()?.let {
+            it.setPadding(dp(14), dp(12), dp(14), dp(12))
+            card.addView(it, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+        }
+
         card.addView(
             View(context).apply { setBackgroundColor(style.trackColor) },
             LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(1)),
@@ -2050,27 +2061,13 @@ class OverlayController(
         // Both glyphs are the real 16dp SystemUI assets, padded up to the usual footer height.
         val expandIcon =
             if (legacyVersion() == LegacyVersion.ANDROID_9) R.drawable.ic_settings_gear else R.drawable.ic_tune
-        // Live Caption gets the footer's trailing end when the feature is present: the row owns the
-        // bottom corners then, so each side rounds only its own outer one.
-        val caption = makeCaptionButton()
         val tune = ImageView(context).apply {
             setImageDrawable(tintedIcon(expandIcon))
             val p = dp(16); setPadding(p, p, p, p)
-            background = roundedBg(
-                style.secondaryContainerColor, 0f, 0f, if (caption == null) corner else 0f, corner
-            )
+            background = roundedBg(style.secondaryContainerColor, 0f, 0f, corner, corner)
             setOnClickListener { expand() }
         }
-        if (caption == null) {
-            card.addView(tune, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
-        } else {
-            caption.setPadding(dp(16), dp(16), dp(16), dp(16))
-            caption.background = roundedBg(style.secondaryContainerColor, 0f, 0f, corner, 0f)
-            val footerRow = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL }
-            footerRow.addView(tune, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-            footerRow.addView(caption, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.MATCH_PARENT))
-            card.addView(footerRow, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
-        }
+        card.addView(tune, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
 
         container.addView(
             card,
@@ -3173,18 +3170,12 @@ class OverlayController(
             setPadding(dp(9), dp(10), dp(9), dp(12))
             setOnClickListener { expand() }
         }.tagColor(EditableColor.OVERFLOW)
-        // Stock puts the Live Caption toggle at the bottom-left of the collapsed panel, opposite
-        // the overflow — so with the feature present the two share one row.
-        val caption = makeCaptionButton()
-        if (caption == null) {
-            card.addView(more, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
-        } else {
-            caption.setPadding(dp(9), dp(10), dp(9), dp(12))
-            val bottom = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL }
-            bottom.addView(caption, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT))
-            bottom.addView(View(context), LinearLayout.LayoutParams(0, dp(1), 1f))
-            bottom.addView(more, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT))
-            card.addView(bottom, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+        card.addView(more, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+        // Live Caption's toggle shares the card's column under the overflow — the card is only as
+        // wide as the pill, so a side-by-side row would squeeze both icons.
+        makeCaptionButton()?.let {
+            it.setPadding(dp(9), dp(4), dp(9), dp(12))
+            card.addView(it, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
         }
 
         if (!callMode) {
