@@ -13,6 +13,7 @@ import android.graphics.PointF
 import android.graphics.Typeface
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.LayerDrawable
 import android.app.NotificationManager
 import android.media.AudioDeviceInfo
 import android.media.AudioManager
@@ -572,14 +573,27 @@ class OverlayController(
         }
     }
 
-    /** Repaints the caption button for the current state: the accent while Live Caption is on. */
+    /** Repaints the caption button for the current state: an accent disc behind the glyph while
+     *  Live Caption is on — the accent tint alone read as nearly unchanged against the icon tint. */
     private fun refreshCaptionButton() {
         val btn = captionButton ?: return
         val on = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
             captionManager?.isSystemAudioCaptioningEnabled == true
         btn.setImageDrawable(
-            tintedIcon(R.drawable.ic_captions, if (on) style.accentColor else style.iconTint)
+            if (on) captionOnIcon() else tintedIcon(R.drawable.ic_captions, style.iconTint)
         )
+    }
+
+    /** The "on" glyph over an accent disc — fixed-size centred layers keep the disc a circle
+     *  whether the button is a wrap-content footer item or a match-parent card row. */
+    private fun captionOnIcon(): Drawable? {
+        val glyph = tintedIcon(R.drawable.ic_captions, contrastOn(style.accentColor)) ?: return null
+        return LayerDrawable(arrayOf(ovalBg(style.accentColor), glyph)).apply {
+            setLayerSize(0, dp(30), dp(30))
+            setLayerGravity(0, Gravity.CENTER)
+            setLayerSize(1, dp(20), dp(20))
+            setLayerGravity(1, Gravity.CENTER)
+        }
     }
 
     /** Live Caption's settings page sits inside the system's Accessibility settings. */
