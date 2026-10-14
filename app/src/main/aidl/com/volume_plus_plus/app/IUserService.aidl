@@ -102,4 +102,23 @@ interface IUserService {
      * through here. Returns the raw {@code settings} output for diagnostics.
      */
     String setCaptionsEnabled(boolean enabled) = 11;
+
+    /**
+     * Active media sessions, one Bundle each: "pkg" (String), "title"/"artist" (String),
+     * "art" (Bitmap, already scaled small), "token" (MediaSession.Token), "state"
+     * (PlaybackState state), "playbackType"/"vol"/"volMax"/"volControl" (ints; an ABSOLUTE
+     * volControl on a REMOTE playback is the cast device the media card's slider drives).
+     * Reachable here because the shell UID passes MediaSessionManager's MEDIA_CONTENT_CONTROL
+     * check, which the app's own UID fails without notification-listener status. Empty list
+     * if none / on error.
+     */
+    List<Bundle> getMediaSessions() = 12;
+
+    /**
+     * Remote session volume — what the media card's cast slider moves. {@code session} is one
+     * of the Bundles from {@link #getMediaSessions}; its token rebuilds a MediaController here
+     * and {@code level} goes to setVolumeTo, which is how the cast device's own volume moves.
+     * Returns true on success.
+     */
+    boolean setSessionVolume(in Bundle session, int level) = 13;
 }

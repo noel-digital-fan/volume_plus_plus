@@ -1,9 +1,16 @@
 package com.volume_plus_plus.app.service
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.media.AudioManager
+import android.media.MediaMetadata
 import android.media.audiofx.LoudnessEnhancer
+import android.media.session.MediaController
+import android.media.session.MediaSession
+import android.media.session.MediaSessionManager
+import android.media.session.PlaybackState
 import android.os.Build
+import android.os.Bundle
 import com.volume_plus_plus.app.IUserService
 import java.io.BufferedReader
 import java.io.File
@@ -229,6 +236,58 @@ class UserService() : IUserService.Stub() {
         return runCommand(
             arrayOf("settings", "put", "secure", "odi_captions_enabled", if (enabled) "1" else "0")
         )
+    }
+
+    /**
+     * Active media sessions for the media card. The app's own UID gets nothing from
+     * [MediaSessionManager.getActiveSessions] without notification-listener status, but this
+     * shell-uid process passes the service's MEDIA_CONTENT_CONTROL check. Art is scaled down
+     * before it crosses Binder (the transaction limit is ~1 MB and the card wants a thumb).
+     */
+    override fun getMediaSessions(): List<Bundle> {
+        val ctx = context ?: return emptyList()
+        return try {
+            val msm = ctx.getSystemService(Context.MEDIA_SESSION_SERVICE) as MediaSessionManager
+            msm.getActiveSessions(null).mapNotNull { c ->
+                val meta = c.metadata
+                val info = c.playbackInfo
+                Bundle().apply {
+                    putString("pkg", c.packageName)
+                    putString("title", meta?.getString(MediaMetadata.METADATA_KEY_TITLE))
+                    putString(
+                        "artist",
+                        meta?.getString(MediaMetadata.METADATA_KEY_ARTIST)
+                            ?: meta?.getString(MediaMetadata.METADATA_KEY_ALBUM_ARTIST),
+                    )
+                    (meta?.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART)
+                        ?: meta?.getBitmap(MediaMetadata.METADATA_KEY_ART))
+                        ?.let { putParcelable("art", Bitmap.createScaledBitmap(it, 96, 96, true)) }
+                    putParcelable("token", c.sessionToken)
+                    putInt("state", c.playbackState?.state ?: PlaybackState.STATE_NONE)
+                    putInt("playbackType", info?.playbackType ?: MediaController.PlaybackInfo.PLAYBACK_TYPE_LOCAL)
+                    putInt("vol", info?.currentVolume ?: -1)
+                    putInt("volMax", info?.maxVolume ?: -1)
+                    putInt("volControl", info?.volumeControl ?: 0)
+                }
+            }
+        } catch (e: Throwable) {
+            emptyList()
+        }
+    }
+
+    /** The cast slider's write path: rebuild the controller from the token in [session] and push
+     *  the level through setVolumeTo, which drives the remote (cast) device's own volume. */
+    override fun setSessionVolume(session: Bundle, level: Int): Boolean {
+        val ctx = context ?: return false
+        return try {
+            session.classLoader = javaClass.classLoader
+            @Suppress("DEPRECATION")
+            val token = session.getParcelable("token") as? MediaSession.Token ?: return false
+            MediaController(ctx, token).setVolumeTo(level, 0)
+            true
+        } catch (e: Throwable) {
+            false
+        }
     }
 
     private fun releaseEnhancer() {

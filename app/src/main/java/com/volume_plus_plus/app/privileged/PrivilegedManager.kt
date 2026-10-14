@@ -5,7 +5,11 @@ import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.media.session.MediaController
+import android.media.session.PlaybackState
 import android.os.Build
+import android.os.Bundle
 import android.os.IBinder
 import android.os.RemoteException
 import com.topjohnwu.superuser.Shell
@@ -742,6 +746,67 @@ object PrivilegedManager {
             val svc = service ?: return@withContext false
             try {
                 svc.setPlayerVolume(piid, volume)
+            } catch (e: RemoteException) {
+                false
+            }
+        }
+
+    /** One active media session, as reported by the privileged service (which the shell/root UID
+     *  lets read MediaSessionManager where the app's own UID cannot). [bundle] is the raw session
+     *  Bundle — kept whole so it can go straight back for [setSessionVolume]. */
+    data class MediaSessionInfo(
+        val pkg: String,
+        val title: String?,
+        val artist: String?,
+        val art: Bitmap?,
+        val playing: Boolean,
+        /** The remote ("cast") volume fields, populated only when the session reports them. */
+        val remote: Boolean,
+        val volume: Int,
+        val maxVolume: Int,
+        val bundle: Bundle,
+    )
+
+    /** Currently-live media sessions for the media card, playing state first. Empty if the
+     *  privileged backend is absent or the platform refuses it the session list. */
+    @Suppress("DEPRECATION")
+    suspend fun getMediaSessions(): List<MediaSessionInfo> =
+        withContext(Dispatchers.IO) {
+            val svc = service ?: return@withContext emptyList()
+            try {
+                svc.mediaSessions.mapNotNull { b ->
+                    b.classLoader = MediaSessionInfo::class.java.classLoader
+                    val pkg = b.getString("pkg") ?: return@mapNotNull null
+                    val remote = b.getInt("playbackType") ==
+                        MediaController.PlaybackInfo.PLAYBACK_TYPE_REMOTE &&
+                        // VOLUME_CONTROL_ABSOLUTE (=1) is @hide in the framework class — the
+                        // public constants live only on the compat mirror — so the literal
+                        // goes here rather than pulling in an androidx.media dep for one int.
+                        b.getInt("volControl") == 1 &&
+                        b.getInt("volMax") > 0
+                    MediaSessionInfo(
+                        pkg = pkg,
+                        title = b.getString("title"),
+                        artist = b.getString("artist"),
+                        art = b.getParcelable("art"),
+                        playing = b.getInt("state") == PlaybackState.STATE_PLAYING,
+                        remote = remote,
+                        volume = b.getInt("vol"),
+                        maxVolume = b.getInt("volMax"),
+                        bundle = b,
+                    )
+                }.sortedByDescending { it.playing }
+            } catch (e: RemoteException) {
+                emptyList()
+            }
+        }
+
+    /** Set a session's remote (cast) volume — the raw level, not a fraction. */
+    suspend fun setSessionVolume(session: MediaSessionInfo, level: Int): Boolean =
+        withContext(Dispatchers.IO) {
+            val svc = service ?: return@withContext false
+            try {
+                svc.setSessionVolume(session.bundle, level)
             } catch (e: RemoteException) {
                 false
             }
