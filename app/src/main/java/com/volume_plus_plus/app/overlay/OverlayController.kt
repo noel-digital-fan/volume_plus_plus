@@ -579,19 +579,22 @@ class OverlayController(
         val btn = captionButton ?: return
         val on = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
             captionManager?.isSystemAudioCaptioningEnabled == true
-        btn.setImageDrawable(
-            if (on) captionOnIcon() else tintedIcon(R.drawable.ic_captions, style.iconTint)
-        )
+        btn.setImageDrawable(captionIcon(on))
     }
 
-    /** The "on" glyph over an accent disc — fixed-size centred layers keep the disc a circle
-     *  whether the button is a wrap-content footer item or a match-parent card row. */
-    private fun captionOnIcon(): Drawable? {
-        val glyph = tintedIcon(R.drawable.ic_captions, contrastOn(style.accentColor)) ?: return null
-        return LayerDrawable(arrayOf(ovalBg(style.accentColor), glyph)).apply {
-            setLayerSize(0, dp(30), dp(30))
+    /** The caption glyph, on an accent disc while Live Caption is on and bare otherwise. Both
+     *  states are fixed-size centred layers with identical bounds — a taller "on" icon would
+     *  stretch the button and shift the rows above it on every toggle. */
+    private fun captionIcon(on: Boolean): Drawable? {
+        val glyph = tintedIcon(
+            R.drawable.ic_captions, if (on) contrastOn(style.accentColor) else style.iconTint,
+        ) ?: return null
+        return LayerDrawable(
+            arrayOf(ovalBg(if (on) style.accentColor else Color.TRANSPARENT), glyph),
+        ).apply {
+            setLayerSize(0, dp(32), dp(32))
             setLayerGravity(0, Gravity.CENTER)
-            setLayerSize(1, dp(20), dp(20))
+            setLayerSize(1, dp(24), dp(24))
             setLayerGravity(1, Gravity.CENTER)
         }
     }
