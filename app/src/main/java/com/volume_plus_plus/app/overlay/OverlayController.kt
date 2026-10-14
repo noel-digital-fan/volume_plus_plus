@@ -2306,18 +2306,20 @@ class OverlayController(
             gravity = Gravity.CENTER_VERTICAL
             setPadding(dp(24), dp(22), dp(24), dp(20))
         }
-        // Stock leaves the Live Caption toggle at the sheet's bottom-left, before the buttons.
-        makeCaptionButton()?.let {
-            it.setPadding(dp(8), dp(8), dp(8), dp(8))
-            footer.addView(it)
-        }
+        // Live Caption sits centred between the two buttons — a spacer either side puts it
+        // mid-sheet rather than tucked into a corner.
+        val caption = makeCaptionButton()
         if (isModernSheet()) {
             // Android 13–14: rounded (pill) buttons — SETTINGS outlined, DONE filled tonal.
             footer.addView(outlinedPillButton(strings.panelSettings) { openSoundSettings() })
             footer.addView(View(context), LinearLayout.LayoutParams(0, dp(1), 1f))
+            caption?.let { it.setPadding(dp(12), dp(8), dp(12), dp(8)); footer.addView(it) }
+            footer.addView(View(context), LinearLayout.LayoutParams(0, dp(1), 1f))
             footer.addView(filledPillButton(strings.panelDone) { dismissSheet() })
         } else {
             footer.addView(textButton(strings.panelSeeMore) { openSoundSettings() })
+            footer.addView(View(context), LinearLayout.LayoutParams(0, dp(1), 1f))
+            caption?.let { it.setPadding(dp(12), dp(8), dp(12), dp(8)); footer.addView(it) }
             footer.addView(View(context), LinearLayout.LayoutParams(0, dp(1), 1f))
             footer.addView(textButton(strings.panelDoneCaps) { dismissSheet() })
         }
