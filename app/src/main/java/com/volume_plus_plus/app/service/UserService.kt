@@ -212,6 +212,17 @@ class UserService() : IUserService.Stub() {
                 LoudnessEnhancer(session).also { it.enabled = true }
             }.getOrNull()
 
+    /**
+     * Live Caption's on/off flag — the same Secure setting the stock volume panel's caption button
+     * flips (see the AIDL doc for why the write is a `settings put` rather than the API). Only the
+     * write needs this process; the read side is a plain public getter in the app.
+     */
+    override fun setCaptionsEnabled(enabled: Boolean): String {
+        return runCommand(
+            arrayOf("settings", "put", "secure", "odi_captions_enabled", if (enabled) "1" else "0")
+        )
+    }
+
     private fun releaseEnhancer() {
         runCatching { enhancer?.release() }
         enhancer = null

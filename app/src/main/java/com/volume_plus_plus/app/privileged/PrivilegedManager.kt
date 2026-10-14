@@ -680,6 +680,22 @@ object PrivilegedManager {
             }
         }
 
+    /**
+     * Toggle Live Caption by writing its Secure flag from the privileged process — the same flag
+     * the stock volume panel's caption button flips. Returns true when the write was delivered;
+     * the real source of truth is CaptioningManager.isSystemAudioCaptioningEnabled, which any app
+     * can read on its own.
+     */
+    suspend fun setCaptionsEnabled(enabled: Boolean): Boolean =
+        withContext(Dispatchers.IO) {
+            val svc = service ?: return@withContext false
+            try {
+                !svc.setCaptionsEnabled(enabled).startsWith("ERROR")
+            } catch (e: RemoteException) {
+                false
+            }
+        }
+
     /** One active audio player, as reported by the privileged service. */
     data class PlayerSession(val piid: Int, val uid: Int, val packageName: String)
 

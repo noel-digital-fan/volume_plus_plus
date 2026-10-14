@@ -31,6 +31,7 @@ import android.view.WindowInsets
 import android.view.WindowManager
 import android.view.animation.AccelerateInterpolator
 import android.view.animation.DecelerateInterpolator
+import android.view.accessibility.CaptioningManager
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -260,6 +261,9 @@ class OverlayController(
     private var callFocusStream = AudioManager.STREAM_VOICE_CALL
     /** The above-100% indicator, present only on panels that draw one and only while boosting. */
     private var boostBar: BoostBar? = null
+    /** The Live Caption toggle currently on screen, retinted in place as its state flips. */
+    private var captionButton: ImageView? = null
+    private val captionManager by lazy { context.getSystemService(CaptioningManager::class.java) }
     /** The Android 9–11 ringer button currently on screen, so a mode change can retint it in place
      *  instead of rebuilding the whole panel (which cancels the app-sync load and drops frames, and
      *  is what made rapid mode taps feel laggy). */
@@ -518,6 +522,70 @@ class OverlayController(
             bar.fraction = MediaBooster.fraction
             bar.percent = MediaBooster.percent
         }
+    }
+
+    /**
+     * Stock Pixel panels carry a Live Caption toggle at the bottom of the sheet (and of the
+     * collapsed panel). The API behind it needs the signature-level SET_SYSTEM_AUDIO_CAPTION, so
+     * the write goes through the privileged service, which sets Secure.ODI_CAPTIONS_ENABLED — the
+     * flag the captioning engine itself observes and [CaptioningManager.isSystemAudioCaptioningEnabled]
+     * reads back. isSystemAudioCaptioningUiEnabled is stock's own "icon in volume control" pref,
+     * so hiding the icon in Live Caption settings hides ours too.
+     */
+    private fun captionsSupported(): Boolean =
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+            // The captioning engine lives in Android System Intelligence — where it is absent the
+            // flag would toggle nothing, so the button doesn't pretend otherwise.
+            runCatching {
+                context.packageManager.getPackageInfo(LIVE_CAPTION_PACKAGE, 0)
+            }.isSuccess &&
+            captionManager?.isSystemAudioCaptioningUiEnabled == true
+
+    /** The Live Caption toggle button, or null where the device (or the user's icon pref) lacks it. */
+    private fun makeCaptionButton(): ImageView? {
+        if (!captionsSupported()) return null
+        return ImageView(context).apply {
+            setOnClickListener {
+                if (isEditor()) return@setOnClickListener // visual-only preview
+                armAutoHide() // interacting keeps the panel alive
+                toggleCaptions()
+            }
+            captionButton = this
+            refreshCaptionButton()
+        }
+    }
+
+    private fun toggleCaptions() {
+        if (!PrivilegedManager.isReady) {
+            // The write needs the privileged backend, so with none bound the button lands the user
+            // on the real toggle rather than flipping nothing.
+            openCaptionSettings()
+            return
+        }
+        scope.launch {
+            val next = captionManager?.isSystemAudioCaptioningEnabled != true
+            if (PrivilegedManager.setCaptionsEnabled(next)) refreshCaptionButton()
+        }
+    }
+
+    /** Repaints the caption button for the current state: the accent while Live Caption is on. */
+    private fun refreshCaptionButton() {
+        val btn = captionButton ?: return
+        val on = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+            captionManager?.isSystemAudioCaptioningEnabled == true
+        btn.setImageDrawable(
+            tintedIcon(R.drawable.ic_captions, if (on) style.accentColor else style.iconTint)
+        )
+    }
+
+    /** Live Caption's settings page sits inside the system's Accessibility settings. */
+    private fun openCaptionSettings() {
+        runCatching {
+            context.startActivity(
+                Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            )
+        }
+        hide()
     }
 
     fun show() {
@@ -1400,6 +1468,7 @@ class OverlayController(
         ringerButtons = null
         genericRingSlider = null
         alarmsOnlyRow = null
+        captionButton = null
         // Drop any previous app box/timer; the renderers that show apps re-arm it via startAppSync,
         // and the collapsed panels (which show none) then correctly leave it stopped.
         stopAppSync()
@@ -1981,13 +2050,27 @@ class OverlayController(
         // Both glyphs are the real 16dp SystemUI assets, padded up to the usual footer height.
         val expandIcon =
             if (legacyVersion() == LegacyVersion.ANDROID_9) R.drawable.ic_settings_gear else R.drawable.ic_tune
+        // Live Caption gets the footer's trailing end when the feature is present: the row owns the
+        // bottom corners then, so each side rounds only its own outer one.
+        val caption = makeCaptionButton()
         val tune = ImageView(context).apply {
             setImageDrawable(tintedIcon(expandIcon))
             val p = dp(16); setPadding(p, p, p, p)
-            background = roundedBg(style.secondaryContainerColor, 0f, 0f, corner, corner)
+            background = roundedBg(
+                style.secondaryContainerColor, 0f, 0f, if (caption == null) corner else 0f, corner
+            )
             setOnClickListener { expand() }
         }
-        card.addView(tune, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+        if (caption == null) {
+            card.addView(tune, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+        } else {
+            caption.setPadding(dp(16), dp(16), dp(16), dp(16))
+            caption.background = roundedBg(style.secondaryContainerColor, 0f, 0f, corner, 0f)
+            val footerRow = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL }
+            footerRow.addView(tune, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+            footerRow.addView(caption, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.MATCH_PARENT))
+            card.addView(footerRow, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+        }
 
         container.addView(
             card,
@@ -2225,6 +2308,11 @@ class OverlayController(
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             setPadding(dp(24), dp(22), dp(24), dp(20))
+        }
+        // Stock leaves the Live Caption toggle at the sheet's bottom-left, before the buttons.
+        makeCaptionButton()?.let {
+            it.setPadding(dp(8), dp(8), dp(8), dp(8))
+            footer.addView(it)
         }
         if (isModernSheet()) {
             // Android 13–14: rounded (pill) buttons — SETTINGS outlined, DONE filled tonal.
@@ -3085,7 +3173,19 @@ class OverlayController(
             setPadding(dp(9), dp(10), dp(9), dp(12))
             setOnClickListener { expand() }
         }.tagColor(EditableColor.OVERFLOW)
-        card.addView(more, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+        // Stock puts the Live Caption toggle at the bottom-left of the collapsed panel, opposite
+        // the overflow — so with the feature present the two share one row.
+        val caption = makeCaptionButton()
+        if (caption == null) {
+            card.addView(more, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+        } else {
+            caption.setPadding(dp(9), dp(10), dp(9), dp(12))
+            val bottom = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL }
+            bottom.addView(caption, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+            bottom.addView(View(context), LinearLayout.LayoutParams(0, dp(1), 1f))
+            bottom.addView(more, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+            card.addView(bottom, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+        }
 
         if (!callMode) {
             // Above everything, so the boost reads as sitting on top of the media capsule below it. The
@@ -3685,6 +3785,8 @@ class OverlayController(
 
         /** The mode name `cmd audio set-ringer-mode` takes for silent (see [silenceRinger]). */
         const val SHELL_RINGER_SILENT = "SILENT"
+        /** Android System Intelligence — the package the Live Caption engine ships in. */
+        const val LIVE_CAPTION_PACKAGE = "com.google.android.as"
 
         /** Output device types that count as an external headset (Bluetooth or wired/USB) — when one is
          *  connected the media-output label shows its name instead of "This phone". These are all
