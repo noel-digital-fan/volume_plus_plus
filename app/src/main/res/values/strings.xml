@@ -16,5 +16,5 @@
     <string name="app_name" translatable="false">Volume++</string>
     <string name="volume_key_service_label">Volume++ overlay</string>
     <string name="volume_key_service_description">Lets Volume++ show its own volume panel with per-app sliders when you press the volume keys, replacing the system panel.</string>
-    <string name="qs_tile_label">Volume++ panel</string>
+    <string name="qs_tile_label">Volume Panel</string>
 </resources>

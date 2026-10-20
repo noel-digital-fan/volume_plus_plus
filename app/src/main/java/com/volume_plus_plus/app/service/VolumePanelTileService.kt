@@ -38,8 +38,11 @@ class VolumePanelTileService : TileService() {
     @Suppress("DEPRECATION", "StartActivityAndCollapseDeprecated")
     override fun onClick() {
         super.onClick()
+        // NO_USER_ACTION: starting the trampoline would otherwise count as the user leaving whatever
+        // app is in front, and video apps answer that (onUserLeaveHint / auto-enter PiP) by shrinking
+        // the video into a mini player — the panel is meant to open over the app, not send it away.
         val intent = Intent(this, PanelTrampolineActivity::class.java)
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_USER_ACTION)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             // Android 14 dropped the Intent overload — it throws now — in favour of a PendingIntent.
             val pending = PendingIntent.getActivity(

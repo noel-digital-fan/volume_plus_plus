@@ -2,5 +2,5 @@
 <resources>
     <string name="volume_key_service_label">Painel do Volume++</string>
     <string name="volume_key_service_description">Permite que o Volume++ mostre seu próprio painel de volume, com um controle por app, ao pressionar as teclas de volume, em vez do painel do sistema.</string>
-    <string name="qs_tile_label">Painel do Volume++</string>
+    <string name="qs_tile_label">Painel de volume</string>
 </resources>

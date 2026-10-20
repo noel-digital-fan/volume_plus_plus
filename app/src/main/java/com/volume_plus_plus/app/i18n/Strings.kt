@@ -259,7 +259,7 @@ open class Strings {
 
     /** The tile's name once it is on screen. The name in the system's tile *picker* comes from
      *  res/values/strings.xml instead — the OS draws that one before we get a say. */
-    open val qsTileLabel get() = "Volume++ panel"
+    open val qsTileLabel get() = "Volume Panel"
 
     open val overlayQuickTile get() = "Quick Settings tile"
     open val overlayQuickTileDetail get() =

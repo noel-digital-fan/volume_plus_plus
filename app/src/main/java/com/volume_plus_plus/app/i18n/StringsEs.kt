@@ -184,7 +184,7 @@ object SpanishStrings : Strings() {
 
     // ── mosaico de Ajustes rápidos ──────────────────────────────────────────────────────────────
 
-    override val qsTileLabel get() = "Panel de Volume++"
+    override val qsTileLabel get() = "Panel de volumen"
 
     override val overlayQuickTile get() = "Mosaico de Ajustes rápidos"
     override val overlayQuickTileDetail get() =

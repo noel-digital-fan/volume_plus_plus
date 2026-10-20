@@ -187,7 +187,7 @@ object FrenchStrings : Strings() {
 
     // ── tuile des Réglages rapides ──────────────────────────────────────────────────────────────
 
-    override val qsTileLabel get() = "Panneau Volume++"
+    override val qsTileLabel get() = "Panneau de volume"
 
     override val overlayQuickTile get() = "Tuile des Réglages rapides"
     override val overlayQuickTileDetail get() =

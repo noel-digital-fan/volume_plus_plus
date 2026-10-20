@@ -188,7 +188,7 @@ object PortugueseStrings : Strings() {
 
     // ── bloco das Configurações rápidas ─────────────────────────────────────────────────────────
 
-    override val qsTileLabel get() = "Painel do Volume++"
+    override val qsTileLabel get() = "Painel de volume"
 
     override val overlayQuickTile get() = "Bloco das Configurações rápidas"
     override val overlayQuickTileDetail get() =
