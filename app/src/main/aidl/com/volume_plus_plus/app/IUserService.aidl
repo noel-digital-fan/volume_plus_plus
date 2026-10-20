@@ -92,4 +92,14 @@ interface IUserService {
      * process per row. Empty list if nothing is ignored or on error.
      */
     List<String> getAudioFocusIgnoredPackages() = 10;
+
+    /**
+     * Writes Secure.ODI_CAPTIONS_ENABLED ("odi_captions_enabled") — the flag the stock volume
+     * panel's Live Caption button toggles, which the captioning engine itself observes. The real
+     * API behind the button (AccessibilityManager.setSystemAudioCaptioningEnabled) is gated on
+     * the signature-level SET_SYSTEM_AUDIO_CAPTION, so even this privileged process reaches it by
+     * writing the setting directly. Reading the state needs no privilege, so only the write comes
+     * through here. Returns the raw {@code settings} output for diagnostics.
+     */
+    String setCaptionsEnabled(boolean enabled) = 11;
 }
