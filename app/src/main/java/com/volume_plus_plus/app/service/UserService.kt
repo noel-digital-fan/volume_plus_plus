@@ -51,6 +51,14 @@ class UserService() : IUserService.Stub() {
         return runCommand(arrayOf("appops", "get", packageName, "TAKE_AUDIO_FOCUS"))
     }
 
+    override fun getAudioFocusIgnoredPackages(): List<String> {
+        return runCommand(arrayOf("appops", "query-op", "TAKE_AUDIO_FOCUS", "ignore"))
+            .lineSequence()
+            .map { it.trim() }
+            .filter { PACKAGE_NAME_RE.matches(it) }
+            .toList()
+    }
+
     /**
      * Ringer mode via AudioService's *internal* setter, which is what `cmd audio set-ringer-mode`
      * reaches — the path the system volume panel itself uses, and the only one that can select
@@ -234,6 +242,13 @@ class UserService() : IUserService.Stub() {
         }
 
     private companion object {
+        /**
+         * What a line of `appops query-op` output looks like when it is a package name, so error
+         * text and blank lines can't slip into the result. Each segment starts with a letter or
+         * underscore and there is at least one dot, as real package names require.
+         */
+        val PACKAGE_NAME_RE = Regex("^[a-zA-Z_][a-zA-Z0-9_]*(\\.[a-zA-Z0-9_]+)+$")
+
         /** AudioPlaybackConfiguration.PLAYER_STATE_STARTED — the player is actively running. */
         const val PLAYER_STATE_STARTED = 2
 
