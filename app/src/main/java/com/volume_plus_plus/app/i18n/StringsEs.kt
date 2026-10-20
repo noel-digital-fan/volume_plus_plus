@@ -172,6 +172,11 @@ object SpanishStrings : Strings() {
         "En la hoja expandida, los controles de las apps en reproducción van encima de las " +
             "filas de canales en lugar de debajo."
 
+    override val overlayLiveCaption get() = "Botón de Subtítulos automáticos"
+    override val overlayLiveCaptionDetail get() =
+        "Añade al panel un botón de Subtítulos automáticos, como en los Pixel. Activarlos y " +
+            "desactivarlos requiere Shizuku o root; sin ellos, el botón abre sus ajustes."
+
     // ── mosaico de Ajustes rápidos ──────────────────────────────────────────────────────────────
 
     override val qsTileLabel get() = "Panel de Volume++"

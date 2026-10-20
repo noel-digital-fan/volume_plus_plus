@@ -534,12 +534,9 @@ class OverlayController(
      * so hiding the icon in Live Caption settings hides ours too.
      */
     private fun captionsSupported(): Boolean =
-        Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
-            // The captioning engine lives in Android System Intelligence — where it is absent the
-            // flag would toggle nothing, so the button doesn't pretend otherwise.
-            runCatching {
-                context.packageManager.getPackageInfo(LIVE_CAPTION_PACKAGE, 0)
-            }.isSuccess &&
+        // Opt-in: off unless the user asked for the button in the Overlay settings.
+        prefs.isLiveCaptionButtonEnabled() &&
+            liveCaptionAvailable(context) &&
             captionManager?.isSystemAudioCaptioningUiEnabled == true
 
     /** The Live Caption toggle button, or null where the device (or the user's icon pref) lacks it. */
@@ -3813,8 +3810,6 @@ class OverlayController(
 
         /** The mode name `cmd audio set-ringer-mode` takes for silent (see [silenceRinger]). */
         const val SHELL_RINGER_SILENT = "SILENT"
-        /** Android System Intelligence — the package the Live Caption engine ships in. */
-        const val LIVE_CAPTION_PACKAGE = "com.google.android.as"
 
         /** Output device types that count as an external headset (Bluetooth or wired/USB) — when one is
          *  connected the media-output label shows its name instead of "This phone". These are all
@@ -3832,3 +3827,15 @@ class OverlayController(
         )
     }
 }
+
+/** Android System Intelligence — the package the Live Caption engine ships in. */
+private const val LIVE_CAPTION_PACKAGE = "com.google.android.as"
+
+/**
+ * Whether this device has Live Caption at all: Android 12+, with the captioning engine's Android
+ * System Intelligence package installed. Where it is absent the flag would toggle nothing, so
+ * neither the panel button nor the Overlay setting that offers it is shown.
+ */
+fun liveCaptionAvailable(context: Context): Boolean =
+    Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+        runCatching { context.packageManager.getPackageInfo(LIVE_CAPTION_PACKAGE, 0) }.isSuccess

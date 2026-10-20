@@ -81,6 +81,17 @@ class OverlayPrefs(context: Context) {
     }
 
     /**
+     * Whether the panel carries a Live Caption toggle, as stock Pixel panels do. Off by default —
+     * not every user wants the extra button, and it only does anything on a device that has Live
+     * Caption at all.
+     */
+    fun isLiveCaptionButtonEnabled(): Boolean = prefs.getBoolean(KEY_LIVE_CAPTION_BUTTON, false)
+
+    fun setLiveCaptionButtonEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_LIVE_CAPTION_BUTTON, enabled).apply()
+    }
+
+    /**
      * Whether Volume Up past 100% may engage the media booster. Off by default, and deliberately so:
      * it drives the output above the level the manufacturer calibrated for, so it can distort, and
      * sustained listening up there can damage hearing. Never on unless the user asks for it.
@@ -148,6 +159,7 @@ class OverlayPrefs(context: Context) {
         const val KEY_SEVEN_EIGHT_VERSION = "seven_eight_version"
         const val KEY_SYSTEM_VOLUME_PANEL = "system_volume_panel"
         const val KEY_SETTINGS_OPENS_APP = "settings_opens_app"
+        const val KEY_LIVE_CAPTION_BUTTON = "live_caption_button"
         const val KEY_APPS_FIRST = "apps_first"
         const val KEY_REMEMBER_APP_VOLUMES = "remember_app_volumes"
         const val KEY_MEDIA_BOOST = "media_boost"

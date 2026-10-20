@@ -176,6 +176,11 @@ object PortugueseStrings : Strings() {
         "No painel expandido, os controlos das apps em reprodução ficam acima das linhas " +
             "de canais em vez de abaixo."
 
+    override val overlayLiveCaption get() = "Botão de Legendas instantâneas"
+    override val overlayLiveCaptionDetail get() =
+        "Adiciona ao painel um botão de Legendas instantâneas, como nos Pixel. Ativá-las e " +
+            "desativá-las requer o Shizuku ou root; sem eles, o botão abre as respetivas definições."
+
     // ── bloco das Configurações rápidas ─────────────────────────────────────────────────────────
 
     override val qsTileLabel get() = "Painel do Volume++"

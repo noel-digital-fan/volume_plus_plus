@@ -175,6 +175,11 @@ object FrenchStrings : Strings() {
         "Dans le panneau déplié, les curseurs des applications en cours de lecture sont " +
             "au-dessus des lignes de flux plutôt qu'en dessous."
 
+    override val overlayLiveCaption get() = "Bouton Sous-titres instantanés"
+    override val overlayLiveCaptionDetail get() =
+        "Ajoute au panneau un bouton Sous-titres instantanés, comme sur les Pixel. Les activer " +
+            "ou les désactiver nécessite Shizuku ou root ; sans eux, le bouton ouvre leurs paramètres."
+
     // ── tuile des Réglages rapides ──────────────────────────────────────────────────────────────
 
     override val qsTileLabel get() = "Panneau Volume++"

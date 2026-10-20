@@ -228,6 +228,11 @@ open class Strings {
         "In the expanded sheet, sliders for playing apps sit above the Media/Ring/Alarm " +
             "rows instead of below them."
 
+    open val overlayLiveCaption get() = "Live Caption button"
+    open val overlayLiveCaptionDetail get() =
+        "Adds a Live Caption toggle to the panel, like stock Pixel panels. Turning captions on " +
+            "and off needs Shizuku or root; without either, the button opens Live Caption settings."
+
     open val overlayMediaBoost get() = "Media volume booster"
     open val overlayMediaBoostDetail get() =
         "At 100%, press Volume Up twice to go louder still — up to 120%."

@@ -75,6 +75,7 @@ import com.volume_plus_plus.app.overlay.MediaBooster
 import com.volume_plus_plus.app.overlay.OverlayController
 import com.volume_plus_plus.app.overlay.OverlayVersion
 import com.volume_plus_plus.app.overlay.StepHaptics
+import com.volume_plus_plus.app.overlay.liveCaptionAvailable
 import com.volume_plus_plus.app.permissions.rememberPermissionState
 import com.volume_plus_plus.app.service.VolumePanelTileService
 import kotlinx.coroutines.flow.first
@@ -183,6 +184,8 @@ private fun OverlaySetup(
     var systemVolumePanel by remember { mutableStateOf(prefs.isSystemVolumePanelEnabled()) }
     var settingsOpensApp by remember { mutableStateOf(prefs.isSettingsOpensAppEnabled()) }
     var appsFirst by remember { mutableStateOf(prefs.isAppsFirstEnabled()) }
+    var liveCaptionButton by remember { mutableStateOf(prefs.isLiveCaptionButtonEnabled()) }
+    val hasLiveCaption = remember { liveCaptionAvailable(context) }
     var rememberAppVolumes by remember { mutableStateOf(prefs.isRememberAppVolumesEnabled()) }
     var mediaBoost by remember { mutableStateOf(prefs.isMediaBoostEnabled()) }
     var boostAvailable by remember {
@@ -220,6 +223,7 @@ private fun OverlaySetup(
         systemVolumePanel = prefs.isSystemVolumePanelEnabled()
         settingsOpensApp = prefs.isSettingsOpensAppEnabled()
         appsFirst = prefs.isAppsFirstEnabled()
+        liveCaptionButton = prefs.isLiveCaptionButtonEnabled()
         rememberAppVolumes = prefs.isRememberAppVolumesEnabled()
         mediaBoost = prefs.isMediaBoostEnabled()
         // The user may have just set Shizuku or root up on the Mixing tab, which can turn a device
@@ -370,6 +374,20 @@ private fun OverlaySetup(
                 prefs.setAppsFirstEnabled(it)
             },
         )
+        // Only offered where the device has Live Caption at all — elsewhere the button would
+        // toggle nothing, so there is nothing to switch on.
+        if (hasLiveCaption) {
+            SettingSwitch(
+                title = s.overlayLiveCaption,
+                subtitle = s.overlayLiveCaptionDetail,
+                checked = liveCaptionButton,
+                enabled = styleEnabled,
+                onCheckedChange = {
+                    liveCaptionButton = it
+                    prefs.setLiveCaptionButtonEnabled(it)
+                },
+            )
+        }
         // Not tied to `styleEnabled`: the per-app levels are applied by the privileged service
         // whether or not the volume keys open our panel, so this keeps working with the system
         // panel in charge.
