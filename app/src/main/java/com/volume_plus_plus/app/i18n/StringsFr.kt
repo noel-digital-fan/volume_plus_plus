@@ -170,6 +170,11 @@ object FrenchStrings : Strings() {
         "Le bouton PARAMÈTRES / VOIR PLUS du panneau ouvre Volume++ au lieu des " +
             "paramètres de son d'Android."
 
+    override val overlayAppsFirst get() = "Curseurs d'apps en premier"
+    override val overlayAppsFirstDetail get() =
+        "Dans le panneau déplié, les curseurs des applications en cours de lecture sont " +
+            "au-dessus des lignes de flux plutôt qu'en dessous."
+
     // ── tuile des Réglages rapides ──────────────────────────────────────────────────────────────
 
     override val qsTileLabel get() = "Panneau Volume++"

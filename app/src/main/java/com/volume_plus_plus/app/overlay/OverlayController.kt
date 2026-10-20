@@ -1558,11 +1558,15 @@ class OverlayController(
         // Touching a row selects it: it stays highlighted and the rest stay greyed until another row
         // is selected (the greyed state persists past finger-lift, unlike the stock panel's momentary dim).
         streamRows.forEach { s -> s.onDragStateChange = { dragging -> if (dragging) selectGenericRow(s) } }
-        streamRows.forEach { content.addView(it, pillParams(first = false)) }
-        content.addView(
-            appsBox,
-            LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT),
+        // "App sliders first" puts the per-app box above the stream rows; otherwise it closes the
+        // list below them, matching the stock sheets. Collapsed, the box is in the hidden extras
+        // either way, so the lead row alone still shows.
+        val appsBoxParams = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT,
         )
+        if (prefs.isAppsFirstEnabled()) content.addView(appsBox, appsBoxParams)
+        streamRows.forEach { content.addView(it, pillParams(first = false)) }
+        if (!prefs.isAppsFirstEnabled()) content.addView(appsBox, appsBoxParams)
 
         val footer = alarmsOnlyFooter()
         alarmsOnlyRow = footer
@@ -1583,7 +1587,9 @@ class OverlayController(
             container.addView(toggle, lp)
         }
 
-        generic78OrderedRows = streamRows + appsBox
+        generic78OrderedRows =
+            if (prefs.isAppsFirstEnabled()) listOf<View>(appsBox) + streamRows
+            else streamRows + appsBox
         generic78ExtraRows = streamRows.filter { it !== lead } + appsBox
         generic78AppsBox = appsBox
         // The lead row is selected by default — the panel opens from the volume keys, and that is the
@@ -2089,9 +2095,14 @@ class OverlayController(
         }
         addStreamRow911(rows, R.drawable.ic_stream_alarm, strings.panelRowAlarm, AudioManager.STREAM_ALARM)
 
-        // Per-app sliders (Volume++'s reason for existing) are appended in the same native row style.
+        // Per-app sliders (Volume++'s reason for existing) are appended in the same native row
+        // style — at the head of the rows when "App sliders first" is on, else below the streams.
         val appsBox = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
-        rows.addView(appsBox, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+        rows.addView(
+            appsBox,
+            if (prefs.isAppsFirstEnabled()) 0 else rows.childCount,
+            LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT),
+        )
         load911Apps(appsBox)
 
         container.addView(
@@ -2423,8 +2434,15 @@ class OverlayController(
         refreshNotificationAvailability()
         addPillRow(body, R.drawable.ic_stream_alarm, "Alarm", AudioManager.STREAM_ALARM)
 
+        // "App sliders first" puts the per-app box at the head of the slider rows: index 0 of the
+        // folded [body] while a call leads the sheet, else just under the "Audio will play on"
+        // card, which opens the picker and isn't a slider.
         val appsBox = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
-        body.addView(appsBox, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+        body.addView(
+            appsBox,
+            if (!prefs.isAppsFirstEnabled()) body.childCount else if (foldCall) 0 else 1,
+            LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT),
+        )
         loadPillRowApps(appsBox)
         if (callPill != null) {
             // The keys are on the call while this sheet is up, and [mediaSlider] is by convention the

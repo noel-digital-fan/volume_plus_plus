@@ -182,6 +182,7 @@ private fun OverlaySetup(
     var version by remember { mutableStateOf(OverlayVersion.current(prefs)) }
     var systemVolumePanel by remember { mutableStateOf(prefs.isSystemVolumePanelEnabled()) }
     var settingsOpensApp by remember { mutableStateOf(prefs.isSettingsOpensAppEnabled()) }
+    var appsFirst by remember { mutableStateOf(prefs.isAppsFirstEnabled()) }
     var rememberAppVolumes by remember { mutableStateOf(prefs.isRememberAppVolumesEnabled()) }
     var mediaBoost by remember { mutableStateOf(prefs.isMediaBoostEnabled()) }
     var boostAvailable by remember {
@@ -218,6 +219,7 @@ private fun OverlaySetup(
     LifecycleResumeEffect(Unit) {
         systemVolumePanel = prefs.isSystemVolumePanelEnabled()
         settingsOpensApp = prefs.isSettingsOpensAppEnabled()
+        appsFirst = prefs.isAppsFirstEnabled()
         rememberAppVolumes = prefs.isRememberAppVolumesEnabled()
         mediaBoost = prefs.isMediaBoostEnabled()
         // The user may have just set Shizuku or root up on the Mixing tab, which can turn a device
@@ -357,6 +359,17 @@ private fun OverlaySetup(
                 },
             )
         }
+        // Applies to every skin: each renderer places its per-app box relative to the stream rows.
+        SettingSwitch(
+            title = s.overlayAppsFirst,
+            subtitle = s.overlayAppsFirstDetail,
+            checked = appsFirst,
+            enabled = styleEnabled,
+            onCheckedChange = {
+                appsFirst = it
+                prefs.setAppsFirstEnabled(it)
+            },
+        )
         // Not tied to `styleEnabled`: the per-app levels are applied by the privileged service
         // whether or not the volume keys open our panel, so this keeps working with the system
         // panel in charge.

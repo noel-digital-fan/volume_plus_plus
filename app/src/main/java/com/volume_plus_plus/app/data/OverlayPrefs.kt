@@ -92,6 +92,16 @@ class OverlayPrefs(context: Context) {
     }
 
     /**
+     * Whether the expanded sheet lists a slider per playing app above the stream rows rather
+     * than below them. Off by default, matching the stock order (streams first).
+     */
+    fun isAppsFirstEnabled(): Boolean = prefs.getBoolean(KEY_APPS_FIRST, false)
+
+    fun setAppsFirstEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_APPS_FIRST, enabled).apply()
+    }
+
+    /**
      * Whether a per-app volume should be remembered and restored the next time that app plays,
      * rather than every new playback starting at full. On by default — it is what people expect of a
      * per-app volume, and the levels are already stored per package either way; switching it off
@@ -138,6 +148,7 @@ class OverlayPrefs(context: Context) {
         const val KEY_SEVEN_EIGHT_VERSION = "seven_eight_version"
         const val KEY_SYSTEM_VOLUME_PANEL = "system_volume_panel"
         const val KEY_SETTINGS_OPENS_APP = "settings_opens_app"
+        const val KEY_APPS_FIRST = "apps_first"
         const val KEY_REMEMBER_APP_VOLUMES = "remember_app_volumes"
         const val KEY_MEDIA_BOOST = "media_boost"
         const val KEY_HOLD_FOLLOW_SCALE = "hold_follow_scale"

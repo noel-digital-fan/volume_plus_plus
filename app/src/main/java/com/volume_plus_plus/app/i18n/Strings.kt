@@ -223,6 +223,11 @@ open class Strings {
         "The panel's SETTINGS / SEE MORE button opens Volume++ instead of Android's sound " +
             "settings."
 
+    open val overlayAppsFirst get() = "App sliders first"
+    open val overlayAppsFirstDetail get() =
+        "In the expanded sheet, sliders for playing apps sit above the Media/Ring/Alarm " +
+            "rows instead of below them."
+
     open val overlayMediaBoost get() = "Media volume booster"
     open val overlayMediaBoostDetail get() =
         "At 100%, press Volume Up twice to go louder still — up to 120%."
