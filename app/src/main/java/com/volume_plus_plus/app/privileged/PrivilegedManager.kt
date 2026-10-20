@@ -513,8 +513,9 @@ object PrivilegedManager {
             .processNameSuffix("mixaudio")
             .debuggable(false)
             // Bump whenever UserService's interface changes so Shizuku restarts a fresh service
-            // instead of reusing a cached older one (v5 adds setInstallerSource).
-            .version(5)
+            // instead of reusing a cached older one (v6 adds the audio-focus, Live Caption and
+            // media-session calls).
+            .version(6)
 
     private val connection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
