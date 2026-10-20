@@ -246,6 +246,7 @@ class UserService() : IUserService.Stub() {
      */
     override fun getMediaSessions(): List<Bundle> {
         val ctx = context ?: return emptyList()
+        ensureMediaServiceManager()
         return try {
             val msm = ctx.getSystemService(Context.MEDIA_SESSION_SERVICE) as MediaSessionManager
             msm.getActiveSessions(null).mapNotNull { c ->
@@ -275,10 +276,32 @@ class UserService() : IUserService.Stub() {
         }
     }
 
+    /**
+     * Make the media framework reachable from this process. Since Android 12 it is a mainline
+     * module whose service binder [android.app.ActivityThread] hands over while starting a normal
+     * app process (MediaFrameworkPlatformInitializer.setMediaServiceManager). Shizuku and root
+     * start this process with app_process, which never does that, so MediaSessionManager's
+     * constructor dereferences a null service manager and getMediaSessions could only ever come
+     * back empty. Doing the hand-over here fixes it; it is skipped where it has already happened,
+     * and before Android 12, where the class doesn't exist and the manager needs none of this.
+     */
+    @Synchronized
+    private fun ensureMediaServiceManager() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return
+        runCatching {
+            val initializer = Class.forName("android.media.MediaFrameworkPlatformInitializer")
+            if (initializer.getMethod("getMediaServiceManager").invoke(null) != null) return
+            val managerClass = Class.forName("android.media.MediaServiceManager")
+            initializer.getMethod("setMediaServiceManager", managerClass)
+                .invoke(null, managerClass.getConstructor().newInstance())
+        }
+    }
+
     /** The cast slider's write path: rebuild the controller from the token in [session] and push
      *  the level through setVolumeTo, which drives the remote (cast) device's own volume. */
     override fun setSessionVolume(session: Bundle, level: Int): Boolean {
         val ctx = context ?: return false
+        ensureMediaServiceManager()
         return try {
             session.classLoader = javaClass.classLoader
             @Suppress("DEPRECATION")
