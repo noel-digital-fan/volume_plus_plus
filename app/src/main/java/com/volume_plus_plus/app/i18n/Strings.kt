@@ -352,8 +352,8 @@ open class Strings {
         "Put every $style panel back where it docks by default, in both portrait and landscape? " +
             "Its colours are kept."
     open fun editRestoreColoursBody(style: String) =
-        "Put every $style colour back to the ones this style ships with? Where you've positioned " +
-            "it is kept."
+        "Put every $style colour back to the ones this style ships with, and its expanded sheet " +
+            "back to full width and opacity? Where you've positioned it is kept."
     open val editRestoreConfirm get() = "Restore"
 
     /** Confirmation after a restore. [style] is an overlay style's name, e.g. `Android 15`. */
@@ -379,6 +379,18 @@ open class Strings {
     /** Fills every swatch on the panel being edited from the device's own Material You palette.
      *  Only shown on Android 12+, where there is a system palette to read (see [systemPalette]). */
     open val liveEditUseSystemColours get() = "Use system colours"
+
+    /** The expanded sheet's own controls in the live editor: width and opacity in the colour
+     *  editor, where it docks in the position editor. */
+    open val liveEditSheetWidth get() = "Sheet width"
+    open val liveEditSheetOpacity get() = "Sheet opacity"
+    open val liveEditSheetPosition get() = "Sheet position"
+    open val sheetPositionStock get() = "Stock"
+    open val sheetPositionBottom get() = "Bottom"
+    open val sheetPositionBottomLeft get() = "Bottom left"
+    open val sheetPositionBottomRight get() = "Bottom right"
+    open val sheetPositionCentre get() = "Centre"
+    open val sheetPositionTop get() = "Top"
 
     /** Editor bar's component switch — short forms, so they fit a floating bar. */
     open val liveEditComponentMain get() = "Main"

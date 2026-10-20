@@ -267,8 +267,8 @@ object SpanishStrings : Strings() {
         "¿Devolver todos los paneles de $style al lugar donde se colocan de forma " +
             "predeterminada, tanto en retrato como en paisaje? Se conservan sus colores."
     override fun editRestoreColoursBody(style: String) =
-        "¿Devolver todos los colores de $style a los que trae este estilo? Se conserva donde lo " +
-            "hayas colocado."
+        "¿Devolver todos los colores de $style a los que trae este estilo, y su hoja expandida a " +
+            "ancho y opacidad completos? Se conserva donde lo hayas colocado."
     override val editRestoreConfirm get() = "Restablecer"
 
     override fun editRestoredPosition(style: String) = "Posición de $style restablecida"
@@ -292,6 +292,15 @@ object SpanishStrings : Strings() {
     override val liveEditPickFromScreen get() = "Elegir de la pantalla"
     override val liveEditUseSystemColours get() = "Usar los colores del sistema"
 
+    override val liveEditSheetWidth get() = "Ancho de la hoja"
+    override val liveEditSheetOpacity get() = "Opacidad de la hoja"
+    override val liveEditSheetPosition get() = "Posición de la hoja"
+    override val sheetPositionStock get() = "Original"
+    override val sheetPositionBottom get() = "Abajo"
+    override val sheetPositionBottomLeft get() = "Abajo a la izquierda"
+    override val sheetPositionBottomRight get() = "Abajo a la derecha"
+    override val sheetPositionCentre get() = "Centro"
+    override val sheetPositionTop get() = "Arriba"
     override val liveEditComponentMain get() = "Principal"
     override val liveEditComponentExpanded get() = "Ampliado"
     override val liveEditComponentOutput get() = "Salida"

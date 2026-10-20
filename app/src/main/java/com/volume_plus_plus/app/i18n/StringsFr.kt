@@ -271,8 +271,8 @@ object FrenchStrings : Strings() {
         "Replacer tous les panneaux $style là où ils s'ancrent par défaut, en portrait " +
             "comme en paysage ? Ses couleurs sont conservées."
     override fun editRestoreColoursBody(style: String) =
-        "Remettre toutes les couleurs de $style à celles fournies avec ce style ? " +
-            "L'emplacement que vous lui avez donné est conservé."
+        "Remettre toutes les couleurs de $style à celles fournies avec ce style, et son panneau " +
+            "déplié en pleine largeur et opacité ? L'emplacement que vous lui avez donné est conservé."
     override val editRestoreConfirm get() = "Rétablir"
 
     override fun editRestoredPosition(style: String) = "Position de $style rétablie"
@@ -296,6 +296,15 @@ object FrenchStrings : Strings() {
     override val liveEditPickFromScreen get() = "Prélever à l'écran"
     override val liveEditUseSystemColours get() = "Utiliser les couleurs du système"
 
+    override val liveEditSheetWidth get() = "Largeur du panneau"
+    override val liveEditSheetOpacity get() = "Opacité du panneau"
+    override val liveEditSheetPosition get() = "Position du panneau"
+    override val sheetPositionStock get() = "D'origine"
+    override val sheetPositionBottom get() = "Bas"
+    override val sheetPositionBottomLeft get() = "En bas à gauche"
+    override val sheetPositionBottomRight get() = "En bas à droite"
+    override val sheetPositionCentre get() = "Centre"
+    override val sheetPositionTop get() = "Haut"
     override val liveEditComponentMain get() = "Principal"
     override val liveEditComponentExpanded get() = "Étendu"
     override val liveEditComponentOutput get() = "Sortie"

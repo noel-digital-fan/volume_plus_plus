@@ -9,6 +9,10 @@ package com.volume_plus_plus.app.overlay
  * carries its own colours and — separately for [EditOrientation.PORTRAIT] and
  * [EditOrientation.LANDSCAPE] — its own position offset. Position is the only thing that differs
  * between the two orientations; colours are shared across them.
+ *
+ * The expanded sheet (see [sheetComponent]) additionally carries its width and opacity, set in the
+ * colour editor and shared across orientations like the colours, and where it docks, set in the
+ * position editor alongside the offset.
  */
 
 /**
@@ -28,8 +32,28 @@ enum class EditOrientation {
     LANDSCAPE,
 }
 
-/** A panel's position nudge from its default docked spot, in dp. +x = right, +y = down. */
-data class PanelOffset(val dxDp: Float = 0f, val dyDp: Float = 0f)
+/**
+ * Where the expanded sheet docks. [STOCK] follows the skin — bottom-centre for the Android 9–16
+ * sheets, top for Android 7–8; the others pin the sheet to that edge, a bottom corner or the
+ * screen centre.
+ */
+enum class SheetPosition { STOCK, BOTTOM, BOTTOM_LEFT, BOTTOM_RIGHT, CENTRE, TOP }
+
+/** The narrowest the sheet may be, as a share of the display width. */
+const val MIN_SHEET_WIDTH = 0.5f
+
+/** The most see-through the sheet's background may go; its controls always stay opaque. */
+const val MIN_SHEET_OPACITY = 0.1f
+
+/**
+ * A panel's position nudge from its docked spot, in dp. +x = right, +y = down. [dock] is the spot
+ * itself, and only means anything on the expanded sheet — every other panel has one fixed spot.
+ */
+data class PanelOffset(
+    val dxDp: Float = 0f,
+    val dyDp: Float = 0f,
+    val dock: SheetPosition = SheetPosition.STOCK,
+)
 
 /**
  * Per-component colour overrides. Each is an opaque ARGB int, or null to keep the skin's own default
@@ -65,11 +89,18 @@ data class PanelColors(
     val title: Int? = null,
 )
 
-/** One component's full customization: a position per orientation, and one shared colour set. */
+/**
+ * One component's full customization: a position per orientation, and one shared colour set. The
+ * expanded sheet also uses [sheetWidth] (a share of the display width, [MIN_SHEET_WIDTH]–1) and
+ * [sheetOpacity] (its background's opacity, [MIN_SHEET_OPACITY]–1); every other component leaves
+ * them at 1.
+ */
 data class ComponentCustomization(
     val portrait: PanelOffset = PanelOffset(),
     val landscape: PanelOffset = PanelOffset(),
     val colors: PanelColors = PanelColors(),
+    val sheetWidth: Float = 1f,
+    val sheetOpacity: Float = 1f,
 ) {
     fun offset(orientation: EditOrientation): PanelOffset =
         if (orientation == EditOrientation.LANDSCAPE) landscape else portrait
@@ -106,8 +137,17 @@ data class VersionCustomization(
 fun ComponentCustomization.withDefaultOffsets(): ComponentCustomization =
     copy(portrait = PanelOffset(), landscape = PanelOffset())
 
-/** This component with every colour override dropped, its positions untouched. */
-fun ComponentCustomization.withDefaultColors(): ComponentCustomization = copy(colors = PanelColors())
+/** This component with every colour override dropped — and, since the colour editor sets them,
+ *  the sheet back at full width and opacity — its positions untouched. */
+fun ComponentCustomization.withDefaultColors(): ComponentCustomization =
+    copy(colors = PanelColors(), sheetWidth = 1f, sheetOpacity = 1f)
+
+/**
+ * The component that is this version's expanded sheet: [PanelComponent.EXPANDED] on Android 9+,
+ * and on Android 7–8 its single panel, which expands in place rather than into a sheet.
+ */
+fun OverlayVersion.sheetComponent(): PanelComponent =
+    if (hasExpanded) PanelComponent.EXPANDED else PanelComponent.MAIN
 
 /**
  * A whole version back at its default positions — every component, both orientations — keeping the

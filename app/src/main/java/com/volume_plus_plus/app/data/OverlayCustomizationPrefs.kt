@@ -5,6 +5,7 @@ import com.volume_plus_plus.app.overlay.ComponentCustomization
 import com.volume_plus_plus.app.overlay.OverlayVersion
 import com.volume_plus_plus.app.overlay.PanelColors
 import com.volume_plus_plus.app.overlay.PanelOffset
+import com.volume_plus_plus.app.overlay.SheetPosition
 import com.volume_plus_plus.app.overlay.VersionCustomization
 import com.volume_plus_plus.app.overlay.withDefaultColors
 import com.volume_plus_plus.app.overlay.withDefaultOffsets
@@ -13,8 +14,8 @@ import org.json.JSONObject
 /**
  * Stores each [OverlayVersion]'s [VersionCustomization] independently, keyed by the version's enum
  * name, so every style (Android 7–15) saves its own position/colour tweaks without touching any
- * other. Read by both the editor UI and the live overlay (so a saved change applies the next time the
- * panel shows). Serialised as compact JSON — only fields that differ from the defaults are written,
+ * other — including the expanded sheet's width, opacity and dock. Read by both the editor UI and the
+ * live overlay (so a saved change applies the next time the panel shows). Serialised as compact JSON — only fields that differ from the defaults are written,
  * so an untouched version stores nothing.
  */
 class OverlayCustomizationPrefs(context: Context) {
@@ -67,11 +68,14 @@ class OverlayCustomizationPrefs(context: Context) {
         put("portrait", encodeOffset(c.portrait))
         put("landscape", encodeOffset(c.landscape))
         put("colors", encodeColors(c.colors))
+        if (c.sheetWidth != 1f) put("sheetWidth", c.sheetWidth.toDouble())
+        if (c.sheetOpacity != 1f) put("sheetOpacity", c.sheetOpacity.toDouble())
     }
 
     private fun encodeOffset(o: PanelOffset) = JSONObject().apply {
         put("dx", o.dxDp.toDouble())
         put("dy", o.dyDp.toDouble())
+        if (o.dock != SheetPosition.STOCK) put("dock", o.dock.name)
     }
 
     private fun encodeColors(colors: PanelColors) = JSONObject().apply {
@@ -104,6 +108,8 @@ class OverlayCustomizationPrefs(context: Context) {
             portrait = decodeOffset(json.optJSONObject("portrait")),
             landscape = decodeOffset(json.optJSONObject("landscape")),
             colors = decodeColors(json.optJSONObject("colors")),
+            sheetWidth = json.optDouble("sheetWidth", 1.0).toFloat(),
+            sheetOpacity = json.optDouble("sheetOpacity", 1.0).toFloat(),
         )
     }
 
@@ -112,6 +118,9 @@ class OverlayCustomizationPrefs(context: Context) {
         return PanelOffset(
             dxDp = json.optDouble("dx", 0.0).toFloat(),
             dyDp = json.optDouble("dy", 0.0).toFloat(),
+            dock = json.optString("dock").let { name ->
+                SheetPosition.entries.firstOrNull { it.name == name } ?: SheetPosition.STOCK
+            },
         )
     }
 

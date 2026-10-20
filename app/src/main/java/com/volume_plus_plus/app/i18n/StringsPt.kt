@@ -181,10 +181,10 @@ object PortugueseStrings : Strings() {
         "No painel expandido, os controlos das apps em reprodução ficam acima das linhas " +
             "de canais em vez de abaixo."
 
-    override val overlayLiveCaption get() = "Botão de Legendas instantâneas"
+    override val overlayLiveCaption get() = "Botão de Legenda Instantânea"
     override val overlayLiveCaptionDetail get() =
-        "Adiciona ao painel um botão de Legendas instantâneas, como nos Pixel. Ativá-las e " +
-            "desativá-las requer o Shizuku ou root; sem eles, o botão abre as respetivas definições."
+        "Adiciona ao painel um botão de Legenda Instantânea, como nos Pixel. Ativar e desativar " +
+            "a legenda requer o Shizuku ou root; sem eles, o botão abre as configurações dela."
 
     // ── bloco das Configurações rápidas ─────────────────────────────────────────────────────────
 
@@ -270,8 +270,8 @@ object PortugueseStrings : Strings() {
         "Voltar todos os painéis do $style para onde eles ficam por padrão, em retrato e em " +
             "paisagem? As cores dele são mantidas."
     override fun editRestoreColoursBody(style: String) =
-        "Voltar todas as cores do $style para as que este estilo traz? O lugar onde você o " +
-            "posicionou é mantido."
+        "Voltar todas as cores do $style para as que este estilo traz, e o painel expandido para " +
+            "largura e opacidade totais? O lugar onde você o posicionou é mantido."
     override val editRestoreConfirm get() = "Restaurar"
 
     override fun editRestoredPosition(style: String) = "Posição do $style restaurada"
@@ -295,6 +295,15 @@ object PortugueseStrings : Strings() {
     override val liveEditPickFromScreen get() = "Escolher da tela"
     override val liveEditUseSystemColours get() = "Usar as cores do sistema"
 
+    override val liveEditSheetWidth get() = "Largura do painel"
+    override val liveEditSheetOpacity get() = "Opacidade do painel"
+    override val liveEditSheetPosition get() = "Posição do painel"
+    override val sheetPositionStock get() = "Original"
+    override val sheetPositionBottom get() = "Embaixo"
+    override val sheetPositionBottomLeft get() = "Embaixo à esquerda"
+    override val sheetPositionBottomRight get() = "Embaixo à direita"
+    override val sheetPositionCentre get() = "Centro"
+    override val sheetPositionTop get() = "Em cima"
     override val liveEditComponentMain get() = "Principal"
     override val liveEditComponentExpanded get() = "Expandido"
     override val liveEditComponentOutput get() = "Saída"

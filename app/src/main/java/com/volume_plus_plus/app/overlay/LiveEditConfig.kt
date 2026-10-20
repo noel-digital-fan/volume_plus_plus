@@ -70,6 +70,27 @@ class LiveEditConfig(
     /** This component's colour overrides. */
     fun colors(): PanelColors = working.component(component).colors
 
+    /** Whether the component being edited is the expanded sheet — the only surface whose width,
+     *  opacity and dock can be set. */
+    fun editingSheet(): Boolean = component == version.sheetComponent()
+
+    /** Set the sheet's width (share of the display width); returns the new working copy. */
+    fun withSheetWidth(width: Float): VersionCustomization {
+        val comp = working.component(component)
+        working = working.withComponent(component, comp.copy(sheetWidth = width.coerceIn(MIN_SHEET_WIDTH, 1f)))
+        return working
+    }
+
+    /** Set the sheet's background opacity; returns the new working copy. */
+    fun withSheetOpacity(opacity: Float): VersionCustomization {
+        val comp = working.component(component)
+        working = working.withComponent(component, comp.copy(sheetOpacity = opacity.coerceIn(MIN_SHEET_OPACITY, 1f)))
+        return working
+    }
+
+    /** Dock the sheet at [dock] for the orientation being edited, keeping its nudge. */
+    fun withDock(dock: SheetPosition): VersionCustomization = withOffset(offset().copy(dock = dock))
+
     /** Set one editable colour on this component (null clears the override); returns the new working copy. */
     fun withColor(which: EditableColor, value: Int?): VersionCustomization {
         val comp = working.component(component)

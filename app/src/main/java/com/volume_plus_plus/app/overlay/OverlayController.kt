@@ -947,7 +947,7 @@ class OverlayController(
                     // clamped so a sliver stays on-screen (never dragged fully out of reach).
                     val nx = (startDx + (event.rawX - startRawX) / perDp).coerceIn(-maxDx(), maxDx())
                     val ny = (startDy + (event.rawY - startRawY) / perDp).coerceIn(-maxDy(), maxDy())
-                    config.withOffset(PanelOffset(nx, ny))
+                    config.withOffset(config.offset().copy(dxDp = nx, dyDp = ny))
                     applyLiveOffset()
                 }
             }
@@ -1070,9 +1070,17 @@ class OverlayController(
      * its anchored edge and, on dismiss, retreats back out the same way.
      */
     private fun exitOffset(view: View): PointF = when {
-        isRichPanel() && expanded -> PointF(0f, view.height.toFloat())          // bottom → down
+        isRichPanel() && expanded -> when (sheetDock()) {
+            SheetPosition.TOP -> PointF(0f, -view.height.toFloat())              // top → up
+            SheetPosition.CENTRE -> PointF(0f, view.height.toFloat())            // centre → down
+            else -> PointF(0f, view.height.toFloat())                            // bottom → down
+        }
         isRichPanel() -> PointF(view.width.toFloat(), 0f)                        // right → right
-        style.placement == Placement.TOP -> PointF(0f, -view.height.toFloat())  // top → up
+        style.placement == Placement.TOP -> when (sheetDock()) {
+            SheetPosition.BOTTOM -> PointF(0f, view.height.toFloat())            // bottom → down
+            SheetPosition.CENTRE -> PointF(0f, view.height.toFloat())            // centre → down
+            else -> PointF(0f, -view.height.toFloat())                           // top → up
+        }
         else -> PointF(view.width.toFloat(), 0f)                                 // right → right
     }
 
@@ -1348,6 +1356,46 @@ class OverlayController(
         }
     }
 
+    /** The expanded sheet's own customization — width, opacity and dock live there: the EXPANDED
+     *  component on the 9–16 skins, the single panel on 7–8 (whose one surface is the sheet). */
+    private fun sheetCustomization(): ComponentCustomization = currentCustomization().component(
+        if (isRichPanel()) PanelComponent.EXPANDED else PanelComponent.MAIN,
+    )
+
+    /** Which edge the expanded sheet docks to: this style's dock for the current orientation (set
+     *  in the position editor), resolved to a real edge — STOCK means each skin's own edge (bottom
+     *  for the 9–16 sheets, top for 7–8). */
+    private fun sheetDock(): SheetPosition = when (val p = sheetCustomization().offset(curOrientation()).dock) {
+        SheetPosition.STOCK -> if (isRichPanel()) SheetPosition.BOTTOM else SheetPosition.TOP
+        else -> p
+    }
+
+    /** The gravity the sheet docks with: its horizontal half (start/end/centre) plus its
+     *  vertical half (top/bottom/centre). */
+    private fun sheetGravity(): Int {
+        val h = when (sheetDock()) {
+            SheetPosition.BOTTOM_LEFT -> Gravity.START
+            SheetPosition.BOTTOM_RIGHT -> Gravity.END
+            else -> Gravity.CENTER_HORIZONTAL
+        }
+        val v = when (sheetDock()) {
+            SheetPosition.TOP -> Gravity.TOP
+            SheetPosition.CENTRE -> Gravity.CENTER_VERTICAL
+            else -> Gravity.BOTTOM
+        }
+        return h or v
+    }
+
+    /** The expanded sheet's width in px: the display width scaled by this style's sheet width (set
+     *  in the colour editor), or MATCH_PARENT at its default so the sheet spans edge to edge like
+     *  stock. The same value drives the real overlay and the editor's live-edit window, so both
+     *  agree on the sheet's size. */
+    private fun sheetWidthPx(): Int {
+        val scale = sheetCustomization().sheetWidth
+        if (scale >= 1f) return WindowManager.LayoutParams.MATCH_PARENT
+        return (context.resources.displayMetrics.widthPixels * scale).roundToInt()
+    }
+
     /** Combined height (px) of the status + navigation bars — the vertical space a *confined* window
      *  (the expanded bottom sheet) loses to the system bars. Used to keep the sheet's title/footer
      *  from being pushed under a bar (or off-screen) on tall sheets. Falls back to a sane estimate on
@@ -1386,7 +1434,8 @@ class OverlayController(
         val dx = dp(off.dxDp)
         val dy = dp(off.dyDp)
         val edge = dp(style.edgeMarginDp)
-        // The sheets want the full display width; the compact panels wrap to their content.
+        // The sheets span the display width scaled by the "sheet width" setting; the compact
+        // panels wrap to their content.
         val expandedSheet = isRichPanel() && expanded
         val fullWidth = expandedSheet ||
             (style.placement == Placement.TOP && style.stretch)
@@ -1402,8 +1451,7 @@ class OverlayController(
                 WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
                 WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
         return WindowManager.LayoutParams(
-            if (fullWidth) WindowManager.LayoutParams.MATCH_PARENT
-            else WindowManager.LayoutParams.WRAP_CONTENT,
+            if (fullWidth) sheetWidthPx() else WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
             overlayType(),
             flags,
@@ -1411,10 +1459,14 @@ class OverlayController(
         ).apply {
             when {
                 isRichPanel() && expanded -> {
-                    // Bottom sheet: docked to the bottom edge, shifted by the offset.
-                    gravity = Gravity.BOTTOM
-                    x = dx
-                    y = -dy
+                    // Sheet docked to the chosen spot (stock: bottom-centre), shifted by the offset.
+                    // x reads off the anchor edge, so an end-docked sheet needs dx inverted.
+                    gravity = sheetGravity()
+                    x = if (sheetDock() == SheetPosition.BOTTOM_RIGHT) -dx else dx
+                    y = when (sheetDock()) {
+                        SheetPosition.TOP, SheetPosition.CENTRE -> dy
+                        else -> -dy
+                    }
                 }
                 isRichPanel() -> {
                     // Right-edge collapsed control, vertically centred.
@@ -1423,10 +1475,14 @@ class OverlayController(
                     y = dy
                 }
                 style.placement == Placement.TOP -> {
-                    // Android 7–8 top sheet.
-                    gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-                    x = dx
-                    y = edge + dy
+                    // Android 7–8 sheet (stock: top).
+                    gravity = sheetGravity()
+                    x = if (sheetDock() == SheetPosition.BOTTOM_RIGHT) -dx else dx
+                    y = when (sheetDock()) {
+                        SheetPosition.TOP -> edge + dy
+                        SheetPosition.CENTRE -> dy
+                        else -> edge - dy
+                    }
                 }
                 else -> {
                     gravity = Gravity.END or Gravity.CENTER_VERTICAL
@@ -1454,12 +1510,16 @@ class OverlayController(
         val edge = dp(style.edgeMarginDp)
         when {
             isRichPanel() && expanded -> {
-                // Full-width bottom sheet: shift it right by dx (keeping full width) and down by dy.
-                lp.width = FrameLayout.LayoutParams.MATCH_PARENT
-                lp.gravity = Gravity.BOTTOM
+                // Sheet docked to the chosen spot (stock: bottom-centre), narrowed by the "sheet
+                // width" setting, then shifted by dx/dy. Setting both side margins keeps dx
+                // working the same under START, CENTRE_HORIZONTAL and END anchoring.
+                lp.width = sheetWidthPx()
+                lp.gravity = sheetGravity()
                 lp.leftMargin = dx
                 lp.rightMargin = -dx
-                lp.bottomMargin = -dy
+                if (sheetDock() == SheetPosition.TOP || sheetDock() == SheetPosition.CENTRE)
+                    lp.topMargin = dy
+                else lp.bottomMargin = -dy
             }
 
             isRichPanel() -> {
@@ -1469,10 +1529,15 @@ class OverlayController(
             }
 
             style.placement == Placement.TOP -> {
-                if (style.stretch) lp.width = FrameLayout.LayoutParams.MATCH_PARENT
-                lp.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+                if (style.stretch) lp.width = sheetWidthPx()
+                lp.gravity = sheetGravity()
                 lp.leftMargin = dx
-                lp.topMargin = edge + dy
+                lp.rightMargin = -dx
+                when (sheetDock()) {
+                    SheetPosition.TOP -> lp.topMargin = edge + dy
+                    SheetPosition.CENTRE -> lp.topMargin = dy
+                    else -> lp.bottomMargin = edge - dy
+                }
             }
 
             else -> {
@@ -1529,7 +1594,9 @@ class OverlayController(
         return FrameLayout(context).apply {
             val pad = dp(style.containerPaddingDp)
             setPadding(pad, pad, pad, pad)
-            background = roundedBg(style.containerColor, dp(style.containerCornerDp).toFloat())
+            // The 7–8 panel has no collapsed form — its one surface is the expanded sheet, so it
+            // carries the same opacity setting.
+            background = roundedBg(sheetSurfaceColor(), dp(style.containerCornerDp).toFloat())
             addView(
                 content,
                 FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT),
@@ -2121,12 +2188,22 @@ class OverlayController(
         LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
             .apply { gravity = Gravity.CENTER_HORIZONTAL }
 
+    /** The sheet's backdrop colour with this style's sheet opacity (set in the colour editor)
+     *  applied. Only the surface goes translucent — [style]'s colours stay untouched, so icon tints
+     *  and child cards drawn from them keep full opacity. */
+    private fun sheetSurfaceColor() = fade(style.containerColor, sheetCustomization().sheetOpacity)
+
     // ── Android 9–11: expanded bottom "Sound" sheet ───────────────────────────────────────────────
 
     private fun sheetContainer() = LinearLayout(context).apply {
         orientation = LinearLayout.VERTICAL
         val corner = dp(20).toFloat()
-        background = roundedBg(style.containerColor, corner, corner, 0f, 0f)
+        // The edge the sheet docks to stays square; the others round. Centred = all four rounded.
+        background = when (sheetDock()) {
+            SheetPosition.TOP -> roundedBg(sheetSurfaceColor(), 0f, 0f, corner, corner)
+            SheetPosition.CENTRE -> roundedBg(sheetSurfaceColor(), corner)
+            else -> roundedBg(sheetSurfaceColor(), corner, corner, 0f, 0f)
+        }
         setPadding(0, dp(10), 0, dp(16))
     }
 
