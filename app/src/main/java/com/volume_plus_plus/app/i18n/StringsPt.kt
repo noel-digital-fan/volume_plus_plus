@@ -380,6 +380,7 @@ object PortugueseStrings : Strings() {
     override val panelAudioWillPlayOn get() = "O áudio será reproduzido em"
     override val panelCallingOn get() = "Chamando em"
     override val panelConnectADevice get() = "Conectar um dispositivo"
+    override val panelCastVolume get() = "Volume da transmissão"
     override val outputThisPhone get() = "Este telefone"
     override val outputWiredHeadphones get() = "Fones com fio"
     override val outputUsbHeadphones get() = "Fones USB"

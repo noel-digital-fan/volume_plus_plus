@@ -11,6 +11,8 @@ import android.graphics.Color
 import android.graphics.PixelFormat
 import android.graphics.PointF
 import android.graphics.Typeface
+import android.graphics.Outline
+import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.LayerDrawable
@@ -27,6 +29,7 @@ import android.util.DisplayMetrics
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
+import android.view.ViewOutlineProvider
 import android.view.ViewTreeObserver
 import android.view.WindowInsets
 import android.view.WindowManager
@@ -2944,6 +2947,21 @@ class OverlayController(
             isClickable = true
         }.tagColor(EditableColor.OUTPUT_CARD)
 
+        // The now-playing header — the stock media card's top half. Filled async once the
+        // privileged session query lands; stays hidden when nothing's playing or no backend is
+        // bound, so a session-less picker looks exactly as before.
+        val mediaHeader = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            visibility = View.GONE
+        }
+        card.addView(
+            mediaHeader,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT,
+            ).apply { bottomMargin = dp(12) },
+        )
+
         lateinit var phone: VolumeSlider
         phone = makeSlider(
             icon = tintedIcon(R.drawable.ic_speaker), glyph = null, label = currentOutputLabel(),
@@ -2977,6 +2995,16 @@ class OverlayController(
             LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(56)).apply { bottomMargin = dp(10) },
         )
 
+        // The remote ("cast") session's own volume — populated only when the active session reports
+        // a remote absolute control; the phone slider above still drives the local media stream.
+        val remoteBox = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
+        card.addView(
+            remoteBox,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT,
+            ),
+        )
+
         val connectSurface = pickerColors.secondary
             ?: if (dark) OUTPUT_PICKER_REF_CONNECT_DARK else OUTPUT_PICKER_REF_CONNECT
         val connect = LinearLayout(context).apply {
@@ -3005,6 +3033,9 @@ class OverlayController(
         })
         card.addView(connect, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
 
+        // The now-playing header's text colour: the picker's own text swatch, else its reference.
+        val content = pickerColors.text ?: refContent
+
         val footer = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.END
@@ -3012,9 +3043,102 @@ class OverlayController(
         }
         // Re-tag the DONE pill with the picker's own identity (overriding filledPillButton's default
         // DONE_BG tag) so a tap selects the Media-output DONE, not the Expanded sheet's.
-        footer.addView(filledPillButton(strings.panelDoneCaps) { dismissPicker() }.tagColor(EditableColor.OUTPUT_DONE))
+        footer.addView(filledPillButton(strings.panelDone) { dismissPicker() }.tagColor(EditableColor.OUTPUT_DONE))
         card.addView(footer, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+
+        // Fill the now-playing header and any cast-volume row once the session list lands; editors
+        // skip it — a preview stays static.
+        if (!isEditor()) {
+            scope.launch {
+                val session = PrivilegedManager.getMediaSessions().firstOrNull()
+                session?.let {
+                    fillMediaCard(it, mediaHeader, remoteBox, content)
+                }
+            }
+        }
         return card
+    }
+
+    /** Fill the media card's top: album art (or the app's icon), what's playing and on what
+     *  device, plus the cast-volume row when the session is a remote one. */
+    private fun fillMediaCard(
+        session: PrivilegedManager.MediaSessionInfo,
+        header: LinearLayout,
+        remoteBox: LinearLayout,
+        content: Int,
+    ) {
+        val art = ImageView(context).apply {
+            clipToOutline = true
+            outlineProvider = object : ViewOutlineProvider() {
+                override fun getOutline(view: View, outline: Outline) {
+                    outline.setRoundRect(0, 0, view.width, view.height, dp(12).toFloat())
+                }
+            }
+            scaleType = ImageView.ScaleType.CENTER_CROP
+            setImageDrawable(
+                session.art?.let { BitmapDrawable(context.resources, it) }
+                    ?: runCatching { context.packageManager.getApplicationIcon(session.pkg) }
+                        .getOrNull(),
+            )
+        }
+        header.addView(
+            art,
+            LinearLayout.LayoutParams(dp(48), dp(48)).apply { marginEnd = dp(14) },
+        )
+        val appLabel = runCatching {
+            context.packageManager.getApplicationInfo(session.pkg, 0)
+                .loadLabel(context.packageManager).toString()
+        }.getOrNull() ?: session.pkg
+        val col = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
+        col.addView(TextView(context).apply {
+            text = session.title ?: appLabel
+            setTextColor(content)
+            textSize = 15f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            maxLines = 1
+            ellipsize = android.text.TextUtils.TruncateAt.END
+        })
+        col.addView(TextView(context).apply {
+            text = listOfNotNull(
+                session.artist, appLabel.takeIf { session.title != null }, currentOutputLabel(),
+            ).joinToString(" · ")
+            setTextColor(fade(content, 0.7f))
+            textSize = 12.5f
+            maxLines = 1
+            ellipsize = android.text.TextUtils.TruncateAt.END
+        })
+        header.addView(col, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        header.visibility = View.VISIBLE
+
+        if (session.remote && session.maxVolume > 0) {
+            val slider = makeSlider(
+                icon = tintedIcon(R.drawable.ic_speaker), glyph = null, label = strings.panelCastVolume,
+                chevron = ChevronDir.NONE, onChevron = {},
+                orientation = SliderOrientation.HORIZONTAL, fill = true, reserveTrailing = false,
+                render = SliderRender.PILL_LABEL, percentWhileDragging = true,
+                showDot = isAndroid16(),
+                squareFill = true,
+                mutedIcon = tintedIcon(R.drawable.ic_speaker_off),
+                minNonZeroFillExtraDp = 0f,
+                fadeLabelWhileDragging = false,
+                pickerTrackColor = style.trackColor,
+                pickerFillColor = style.fillColor,
+                pickerContentColor = style.textColor,
+            ) { level ->
+                scope.launch {
+                    PrivilegedManager.setSessionVolume(
+                        session, (level * session.maxVolume).roundToInt(),
+                    )
+                }
+            }
+            slider.level = session.volume.toFloat() / session.maxVolume
+            remoteBox.addView(
+                slider,
+                LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, dp(56),
+                ).apply { bottomMargin = dp(10) },
+            )
+        }
     }
 
     /** User-facing "close the picker" (DONE / tap-outside). On the real overlay it collapses back to
