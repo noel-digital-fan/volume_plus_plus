@@ -9,6 +9,7 @@ import com.volume_plus_plus.app.overlay.SheetPosition
 import com.volume_plus_plus.app.overlay.VersionCustomization
 import com.volume_plus_plus.app.overlay.withDefaultColors
 import com.volume_plus_plus.app.overlay.withDefaultOffsets
+import com.volume_plus_plus.app.overlay.withDefaultWidths
 import org.json.JSONObject
 
 /**
@@ -46,6 +47,9 @@ class OverlayCustomizationPrefs(context: Context) {
     /** Drop [version]'s colour overrides — every component — keeping where it has been positioned. */
     fun restoreDefaultColors(version: OverlayVersion) = update(version) { it.withDefaultColors() }
 
+    /** Put [version]'s sheet back at full width in both orientations, keeping everything else. */
+    fun restoreDefaultWidth(version: OverlayVersion) = update(version) { it.withDefaultWidths() }
+
     /** Store [transform]ed, falling back to [clear] once nothing is customized, so a version restored
      *  all the way back to stock stores nothing again. */
     private fun update(
@@ -68,7 +72,8 @@ class OverlayCustomizationPrefs(context: Context) {
         put("portrait", encodeOffset(c.portrait))
         put("landscape", encodeOffset(c.landscape))
         put("colors", encodeColors(c.colors))
-        if (c.sheetWidth != 1f) put("sheetWidth", c.sheetWidth.toDouble())
+        if (c.portraitWidth != 1f) put("portraitWidth", c.portraitWidth.toDouble())
+        if (c.landscapeWidth != 1f) put("landscapeWidth", c.landscapeWidth.toDouble())
         if (c.sheetOpacity != 1f) put("sheetOpacity", c.sheetOpacity.toDouble())
     }
 
@@ -108,7 +113,10 @@ class OverlayCustomizationPrefs(context: Context) {
             portrait = decodeOffset(json.optJSONObject("portrait")),
             landscape = decodeOffset(json.optJSONObject("landscape")),
             colors = decodeColors(json.optJSONObject("colors")),
-            sheetWidth = json.optDouble("sheetWidth", 1.0).toFloat(),
+            // "sheetWidth" is the single width saved before it was split per orientation; it seeds
+            // both until one of them is set on its own.
+            portraitWidth = json.optDouble("portraitWidth", json.optDouble("sheetWidth", 1.0)).toFloat(),
+            landscapeWidth = json.optDouble("landscapeWidth", json.optDouble("sheetWidth", 1.0)).toFloat(),
             sheetOpacity = json.optDouble("sheetOpacity", 1.0).toFloat(),
         )
     }

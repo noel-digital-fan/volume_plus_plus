@@ -326,13 +326,17 @@ open class Strings {
     open fun editStyleTitle(style: String) = "Edit $style"
 
     open fun editStyleIntro(style: String) =
-        "Customise this style on its own. Position and colours are edited separately, and only " +
-            "$style is changed."
+        "Customise this style on its own. Position, width and colours are edited separately, and " +
+            "only $style is changed."
 
     open val editPosition get() = "Edit position"
     open val editPositionHint get() =
         "The real panel opens on top of your screen — drag it exactly where you want, then Save or " +
             "Cancel from the floating bar."
+    open val editWidth get() = "Edit width"
+    open val editWidthHint get() =
+        "How wide the expanded sheet is, set separately for portrait and landscape. The real sheet " +
+            "opens on top of your screen; slide its width, then Save or Cancel."
     open val editColours get() = "Edit colours"
     open val editColoursHint get() =
         "The panel opens on top of your screen — tap a part of it (or a swatch), dial the colour, " +
@@ -342,9 +346,10 @@ open class Strings {
     // for the style whose hub they're pressed in.
     open val editRestoreDefaults get() = "Restore defaults"
     open val editRestoreDefaultsHint get() =
-        "Undo your edits for this style. Position and colours are restored separately, and no other " +
-            "style is touched."
+        "Undo your edits for this style. Position, width and colours are restored separately, and " +
+            "no other style is touched."
     open val editRestorePosition get() = "Restore default position"
+    open val editRestoreWidth get() = "Restore default width"
     open val editRestoreColours get() = "Restore default colours"
 
     /** The restore confirmations. [style] is an overlay style's name, e.g. `Android 15`. */
@@ -353,17 +358,24 @@ open class Strings {
             "Its colours are kept."
     open fun editRestoreColoursBody(style: String) =
         "Put every $style colour back to the ones this style ships with, and its expanded sheet " +
-            "back to full width and opacity? Where you've positioned it is kept."
+            "back to full opacity? Where you've positioned it is kept."
+    open fun editRestoreWidthBody(style: String) =
+        "Put the $style expanded sheet back to full width, in both portrait and landscape? Its " +
+            "position and colours are kept."
     open val editRestoreConfirm get() = "Restore"
 
     /** Confirmation after a restore. [style] is an overlay style's name, e.g. `Android 15`. */
     open fun editRestoredPosition(style: String) = "$style position restored"
     open fun editRestoredColours(style: String) = "$style colours restored"
+    open fun editRestoredWidth(style: String) = "$style width restored"
 
     open val editWhichLayout get() = "Which layout?"
     open val editWhichLayoutBody get() =
         "Portrait and landscape are positioned separately. The screen rotates to the layout you " +
             "pick so you position the panel exactly as it'll appear."
+    open val editWhichLayoutWidthBody get() =
+        "Portrait and landscape each have their own width. The screen rotates to the layout you " +
+            "pick so you size the sheet exactly as it'll appear."
 
     open val orientationPortrait get() = "Portrait"
     open val orientationLandscape get() = "Landscape"
@@ -372,6 +384,8 @@ open class Strings {
 
     open val liveEditPositionHint get() = "Drag the panel, or type X / Y (dp)"
     open val liveEditResetPosition get() = "Reset position"
+    open val liveEditWidthHint get() = "Slide to set the sheet's width in this orientation"
+    open val liveEditResetWidth get() = "Reset width"
     open val liveEditColourHint get() = "Tap the panel or a swatch, then dial or type a colour"
     open val liveEditUseDefault get() = "Use default"
     open val liveEditPickFromScreen get() = "Pick from screen"

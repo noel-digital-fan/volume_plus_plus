@@ -26,6 +26,7 @@ import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
 import android.widget.HorizontalScrollView
 import android.widget.LinearLayout
+import android.widget.ScrollView
 import android.widget.SeekBar
 import android.widget.TextView
 import com.volume_plus_plus.app.MainActivity
@@ -47,6 +48,7 @@ private val strings get() = Localization.strings
  * - **Position:** drag the panel anywhere to move it; a tap still works its controls (preview only).
  * - **Colour:** tap a part of the panel (or a swatch chip) to pick the element, then dial its colour
  *   with R/G/B; the panel repaints live. The panel's controls stay interactive for preview.
+ * - **Width:** the expanded sheet only — slide its width for the orientation being edited.
  *
  * Either way the panel's controls never touch the device's real volume/ringer. A small floating
  * control bar (its own overlay window) carries the editing chrome — a Main/Expanded switch (Android
@@ -161,6 +163,8 @@ class LiveEditSession(
         config.onColorTapped = { onColorTappedInPanel(it) }
         config.onOffsetChanged = { offset -> updateCoordFields(offset) }
         if (mode == LiveEditMode.COLOR) selectedColor = visibleColors(version, config.component).first()
+        // Width is a property of the expanded sheet alone, so that editor opens straight on it.
+        if (mode == LiveEditMode.WIDTH) config.component = version.sheetComponent()
         controller.show()
         showControlBar()
     }
@@ -285,7 +289,6 @@ class LiveEditSession(
 
         // Collapsible body: the component switch (Android 9+) plus the mode-specific controls.
         val body = LinearLayout(appCtx).apply { orientation = LinearLayout.VERTICAL }
-        barBody = body
 
         if (editComponents().size > 1) {
             // The switch can hold up to three chips (Main / Expanded / Output on Android 15), so it
@@ -322,12 +325,18 @@ class LiveEditSession(
             )
         }
 
-        if (mode == LiveEditMode.POSITION) {
-            buildPositionControls(body)
-        } else {
-            buildColorControls(body)
+        when (mode) {
+            LiveEditMode.POSITION -> buildPositionControls(body)
+            LiveEditMode.COLOR -> buildColorControls(body)
+            LiveEditMode.WIDTH -> buildWidthControls(body)
         }
-        panel.addView(body, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+        // The body scrolls once it would run off the screen. The colour editor is taller than a
+        // landscape screen, and before this its lower controls simply couldn't be reached.
+        val bodyScroll = MaxHeightScrollView(appCtx) { maxBodyHeight() }.apply {
+            addView(body, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        }
+        barBody = bodyScroll
+        panel.addView(bodyScroll, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
 
         // The colour panel and the position panel (with its X/Y fields) both want a fixed, roomier
         // width; only the bare position bar wrapped its content. Widened so the Cancel/Save row has
@@ -446,6 +455,36 @@ class LiveEditSession(
         SheetPosition.BOTTOM_RIGHT -> strings.sheetPositionBottomRight
         SheetPosition.CENTRE -> strings.sheetPositionCentre
         SheetPosition.TOP -> strings.sheetPositionTop
+    }
+
+    // ── width controls ──────────────────────────────────────────────────────────────────────────────
+
+    /**
+     * The width editor's bar body: a hint, the sheet-width slider for the orientation being edited,
+     * and a Reset back to full width. Width only means anything on the expanded sheet, which is the
+     * one component this editor opens, so there's no component switch.
+     */
+    private fun buildWidthControls(panel: LinearLayout) {
+        panel.addView(TextView(appCtx).apply {
+            text = strings.liveEditWidthHint
+            setTextColor(fade(onBar, 0.7f))
+            textSize = 12f
+            val p = px(4); setPadding(px(6), p, px(6), p)
+        })
+        val width = percentSlider(
+            strings.liveEditSheetWidth, MIN_SHEET_WIDTH,
+            current = { config.sheetWidth() },
+        ) { config.withSheetWidth(it); applySheetLive() }
+        sheetControls = width
+        panel.addView(width, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+        val resetRow = LinearLayout(appCtx).apply { orientation = LinearLayout.HORIZONTAL }
+        resetRow.addView(textAction(strings.liveEditResetWidth, onBar) {
+            config.withSheetWidth(1f)
+            applySheetLive()
+            refreshSheetControls()
+        })
+        panel.addView(resetRow)
+        refreshSheetControls()
     }
 
     /** Dock the sheet somewhere else. The sheet's rounded corners follow its dock, so its content
@@ -614,19 +653,14 @@ class LiveEditSession(
             panel.addView(systemRow)
         }
 
-        // The sheet's width and opacity: how it looks rather than where it sits, so they live with
-        // the colours, and like the colours they're shared by both orientations.
-        val sheet = LinearLayout(appCtx).apply { orientation = LinearLayout.VERTICAL }
-        sheet.addView(percentSlider(
-            strings.liveEditSheetWidth, MIN_SHEET_WIDTH,
-            current = { config.working.component(config.component).sheetWidth },
-        ) { config.withSheetWidth(it); applySheetLive() })
-        sheet.addView(percentSlider(
+        // The sheet's opacity: how it looks rather than where it sits, so it lives with the colours,
+        // and like the colours it's shared by both orientations.
+        val opacity = percentSlider(
             strings.liveEditSheetOpacity, MIN_SHEET_OPACITY,
             current = { config.working.component(config.component).sheetOpacity },
-        ) { config.withSheetOpacity(it); applySheetLive() })
-        sheetControls = sheet
-        panel.addView(sheet, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+        ) { config.withSheetOpacity(it); applySheetLive() }
+        sheetControls = opacity
+        panel.addView(opacity, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
             topMargin = px(4)
         })
         refreshSheetControls()
@@ -687,8 +721,8 @@ class LiveEditSession(
 
     private fun percent(fraction: Float) = "" + (fraction * 100).roundToInt() + "%"
 
-    /** Repaint the sheet for a new width/opacity: its content for the opacity, its window for the
-     *  width. */
+    /** Repaint the sheet for a new width or opacity: its content for the opacity, its window for
+     *  the width. */
     private fun applySheetLive() {
         controller.applyLiveColors()
         controller.applyLiveOffset()
@@ -985,11 +1019,13 @@ class LiveEditSession(
 
     /** The components this session lets the user switch between. The Android 15 output picker is a
      *  colour-only surface (a centred modal, not a docked panel), so it's offered in COLOR mode only —
-     *  in POSITION mode only the panels that actually dock (Main / Expanded) are positioned. */
-    private fun editComponents(): List<PanelComponent> =
-        if (mode == LiveEditMode.POSITION)
-            version.components().filter { it != PanelComponent.OUTPUT }
-        else version.components()
+     *  in POSITION mode only the panels that actually dock (Main / Expanded) are positioned, and the
+     *  WIDTH editor only ever edits the expanded sheet. */
+    private fun editComponents(): List<PanelComponent> = when (mode) {
+        LiveEditMode.POSITION -> version.components().filter { it != PanelComponent.OUTPUT }
+        LiveEditMode.COLOR -> version.components()
+        LiveEditMode.WIDTH -> listOf(version.sheetComponent())
+    }
 
     /** The switch-chip label for a component. */
     private fun componentLabel(component: PanelComponent): String = component.shortLabel(strings)
@@ -1170,6 +1206,15 @@ class LiveEditSession(
 
     // ── helpers ─────────────────────────────────────────────────────────────────────────────────────
 
+    /** The tallest the bar's body may grow before it scrolls: the screen as it is now (so a rotation
+     *  is picked up on the next measure) less the bar's own top row and some clearance. */
+    private fun maxBodyHeight(): Int {
+        val screen = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R)
+            windowManager.currentWindowMetrics.bounds.height()
+        else appCtx.resources.displayMetrics.heightPixels
+        return (screen - px(140)).coerceAtLeast(px(120))
+    }
+
     private fun overlayType(): Int =
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
@@ -1215,5 +1260,13 @@ class LiveEditSession(
 
         /** True while an on-screen edit is in progress. */
         val isActive: Boolean get() = active != null
+    }
+}
+
+/** A ScrollView that grows with its content up to [maxHeight] — re-read on every measure — and only
+ *  then scrolls. */
+private class MaxHeightScrollView(context: Context, private val maxHeight: () -> Int) : ScrollView(context) {
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        super.onMeasure(widthMeasureSpec, MeasureSpec.makeMeasureSpec(maxHeight(), MeasureSpec.AT_MOST))
     }
 }

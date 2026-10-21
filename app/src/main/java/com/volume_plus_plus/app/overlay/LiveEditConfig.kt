@@ -3,8 +3,9 @@ package com.volume_plus_plus.app.overlay
 import android.graphics.Rect
 import android.media.AudioManager
 
-/** What the on-screen live editor is editing: the panel's position, or its colours. */
-enum class LiveEditMode { POSITION, COLOR }
+/** What the on-screen live editor is editing: the panel's position, its colours, or (the
+ *  expanded sheet only) its width. */
+enum class LiveEditMode { POSITION, COLOR, WIDTH }
 
 /**
  * Drives an [OverlayController] in **live-edit** mode: the real panel is drawn on top of the user's
@@ -74,10 +75,13 @@ class LiveEditConfig(
      *  opacity and dock can be set. */
     fun editingSheet(): Boolean = component == version.sheetComponent()
 
-    /** Set the sheet's width (share of the display width); returns the new working copy. */
+    /** The sheet's width (share of the display width) for the orientation being edited. */
+    fun sheetWidth(): Float = working.component(component).sheetWidth(orientation)
+
+    /** Set the sheet's width for the orientation being edited; returns the new working copy. */
     fun withSheetWidth(width: Float): VersionCustomization {
         val comp = working.component(component)
-        working = working.withComponent(component, comp.copy(sheetWidth = width.coerceIn(MIN_SHEET_WIDTH, 1f)))
+        working = working.withComponent(component, comp.withSheetWidth(orientation, width))
         return working
     }
 

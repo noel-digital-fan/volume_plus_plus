@@ -1386,12 +1386,12 @@ class OverlayController(
         return h or v
     }
 
-    /** The expanded sheet's width in px: the display width scaled by this style's sheet width (set
-     *  in the colour editor), or MATCH_PARENT at its default so the sheet spans edge to edge like
-     *  stock. The same value drives the real overlay and the editor's live-edit window, so both
-     *  agree on the sheet's size. */
+    /** The expanded sheet's width in px: the display width scaled by this style's sheet width for
+     *  the current orientation (set in the width editor), or MATCH_PARENT at its default so the
+     *  sheet spans edge to edge like stock. The same value drives the real overlay and the editor's
+     *  live-edit window, so both agree on the sheet's size. */
     private fun sheetWidthPx(): Int {
-        val scale = sheetCustomization().sheetWidth
+        val scale = sheetCustomization().sheetWidth(curOrientation())
         if (scale >= 1f) return WindowManager.LayoutParams.MATCH_PARENT
         return (context.resources.displayMetrics.widthPixels * scale).roundToInt()
     }

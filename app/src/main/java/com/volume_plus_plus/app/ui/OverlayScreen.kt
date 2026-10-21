@@ -156,11 +156,17 @@ fun OverlayScreen(
         // Colours are shared across orientations, so edit them in whatever way the device is held now.
         onEditColors = { launchLiveEdit(deviceOrientation, LiveEditMode.COLOR) },
         onEditPosition = { orientation -> launchLiveEdit(orientation, LiveEditMode.POSITION) },
-        // Both restores write straight through for this version alone; the overlay re-reads its
+        // Width is per orientation too, so it's edited in the layout the user picks.
+        onEditWidth = { orientation -> launchLiveEdit(orientation, LiveEditMode.WIDTH) },
+        // The restores write straight through for this version alone; the overlay re-reads its
         // customization every time it renders, so the next panel already comes up restored.
         onRestorePosition = {
             customizationPrefs.restoreDefaultPosition(version)
             scope.launch { snackbar.showSnackbar(s.editRestoredPosition(version.label)) }
+        },
+        onRestoreWidth = {
+            customizationPrefs.restoreDefaultWidth(version)
+            scope.launch { snackbar.showSnackbar(s.editRestoredWidth(version.label)) }
         },
         onRestoreColors = {
             customizationPrefs.restoreDefaultColors(version)

@@ -248,13 +248,17 @@ object FrenchStrings : Strings() {
     override fun editStyleTitle(style: String) = "Modifier $style"
 
     override fun editStyleIntro(style: String) =
-        "Personnalisez ce style séparément. La position et les couleurs se modifient à part, et " +
-            "seul $style est changé."
+        "Personnalisez ce style séparément. La position, la largeur et les couleurs se modifient " +
+            "à part, et seul $style est changé."
 
     override val editPosition get() = "Modifier la position"
     override val editPositionHint get() =
         "Le vrai panneau s'ouvre par-dessus votre écran — faites-le glisser exactement où vous le " +
             "voulez, puis enregistrez ou annulez depuis la barre flottante."
+    override val editWidth get() = "Modifier la largeur"
+    override val editWidthHint get() =
+        "La largeur du panneau déplié, réglée séparément en portrait et en paysage. Le vrai panneau " +
+            "s'ouvre par-dessus votre écran — réglez sa largeur, puis enregistrez ou annulez."
     override val editColours get() = "Modifier les couleurs"
     override val editColoursHint get() =
         "Le panneau s'ouvre par-dessus votre écran — touchez une de ses parties (ou un échantillon), " +
@@ -262,9 +266,10 @@ object FrenchStrings : Strings() {
 
     override val editRestoreDefaults get() = "Rétablir les valeurs par défaut"
     override val editRestoreDefaultsHint get() =
-        "Annule vos modifications sur ce style. La position et les couleurs se rétablissent " +
-            "séparément, et aucun autre style n'est touché."
+        "Annule vos modifications sur ce style. La position, la largeur et les couleurs se " +
+            "rétablissent séparément, et aucun autre style n'est touché."
     override val editRestorePosition get() = "Rétablir la position par défaut"
+    override val editRestoreWidth get() = "Rétablir la largeur par défaut"
     override val editRestoreColours get() = "Rétablir les couleurs par défaut"
 
     override fun editRestorePositionBody(style: String) =
@@ -272,16 +277,23 @@ object FrenchStrings : Strings() {
             "comme en paysage ? Ses couleurs sont conservées."
     override fun editRestoreColoursBody(style: String) =
         "Remettre toutes les couleurs de $style à celles fournies avec ce style, et son panneau " +
-            "déplié en pleine largeur et opacité ? L'emplacement que vous lui avez donné est conservé."
+            "déplié en pleine opacité ? L'emplacement que vous lui avez donné est conservé."
+    override fun editRestoreWidthBody(style: String) =
+        "Remettre le panneau déplié de $style en pleine largeur, en portrait et en paysage ? Sa " +
+            "position et ses couleurs sont conservées."
     override val editRestoreConfirm get() = "Rétablir"
 
     override fun editRestoredPosition(style: String) = "Position de $style rétablie"
     override fun editRestoredColours(style: String) = "Couleurs de $style rétablies"
+    override fun editRestoredWidth(style: String) = "Largeur de $style rétablie"
 
     override val editWhichLayout get() = "Quelle orientation ?"
     override val editWhichLayoutBody get() =
         "Le portrait et le paysage se positionnent séparément. L'écran pivote vers l'orientation " +
             "que vous choisissez, pour que vous placiez le panneau exactement tel qu'il apparaîtra."
+    override val editWhichLayoutWidthBody get() =
+        "Le portrait et le paysage ont chacun leur propre largeur. L'écran pivote vers l'orientation " +
+            "que vous choisissez, pour que vous régliez le panneau exactement tel qu'il apparaîtra."
 
     override val orientationPortrait get() = "Portrait"
     override val orientationLandscape get() = "Paysage"
@@ -290,6 +302,9 @@ object FrenchStrings : Strings() {
 
     override val liveEditPositionHint get() = "Faites glisser le panneau, ou saisissez X / Y (dp)"
     override val liveEditResetPosition get() = "Réinitialiser la position"
+    override val liveEditWidthHint get() =
+        "Faites glisser pour régler la largeur du panneau dans cette orientation"
+    override val liveEditResetWidth get() = "Réinitialiser la largeur"
     override val liveEditColourHint get() =
         "Touchez le panneau ou un échantillon, puis réglez ou saisissez une couleur"
     override val liveEditUseDefault get() = "Valeur par défaut"

@@ -244,13 +244,17 @@ object SpanishStrings : Strings() {
     override fun editStyleTitle(style: String) = "Editar $style"
 
     override fun editStyleIntro(style: String) =
-        "Personaliza este estilo por separado. La posición y los colores se editan aparte, y solo " +
-            "se modifica $style."
+        "Personaliza este estilo por separado. La posición, el ancho y los colores se editan " +
+            "aparte, y solo se modifica $style."
 
     override val editPosition get() = "Editar la posición"
     override val editPositionHint get() =
         "El panel real se abre sobre tu pantalla: arrástralo exactamente donde lo quieras y luego " +
             "guarda o cancela en la barra flotante."
+    override val editWidth get() = "Editar el ancho"
+    override val editWidthHint get() =
+        "El ancho de la hoja expandida, por separado en retrato y en paisaje. La hoja real se abre " +
+            "sobre tu pantalla: ajusta su ancho y luego guarda o cancela."
     override val editColours get() = "Editar los colores"
     override val editColoursHint get() =
         "El panel se abre sobre tu pantalla: toca una parte del panel (o una muestra), ajusta el " +
@@ -258,9 +262,10 @@ object SpanishStrings : Strings() {
 
     override val editRestoreDefaults get() = "Restablecer los valores predeterminados"
     override val editRestoreDefaultsHint get() =
-        "Deshace tus cambios en este estilo. La posición y los colores se restablecen por " +
-            "separado, y ningún otro estilo se modifica."
+        "Deshace tus cambios en este estilo. La posición, el ancho y los colores se restablecen " +
+            "por separado, y ningún otro estilo se modifica."
     override val editRestorePosition get() = "Restablecer la posición predeterminada"
+    override val editRestoreWidth get() = "Restablecer el ancho predeterminado"
     override val editRestoreColours get() = "Restablecer los colores predeterminados"
 
     override fun editRestorePositionBody(style: String) =
@@ -268,16 +273,23 @@ object SpanishStrings : Strings() {
             "predeterminada, tanto en retrato como en paisaje? Se conservan sus colores."
     override fun editRestoreColoursBody(style: String) =
         "¿Devolver todos los colores de $style a los que trae este estilo, y su hoja expandida a " +
-            "ancho y opacidad completos? Se conserva donde lo hayas colocado."
+            "opacidad completa? Se conserva donde lo hayas colocado."
+    override fun editRestoreWidthBody(style: String) =
+        "¿Devolver la hoja expandida de $style al ancho completo, en retrato y en paisaje? Se " +
+            "conservan su posición y sus colores."
     override val editRestoreConfirm get() = "Restablecer"
 
     override fun editRestoredPosition(style: String) = "Posición de $style restablecida"
     override fun editRestoredColours(style: String) = "Colores de $style restablecidos"
+    override fun editRestoredWidth(style: String) = "Ancho de $style restablecido"
 
     override val editWhichLayout get() = "¿Qué orientación?"
     override val editWhichLayoutBody get() =
         "El retrato y el paisaje se posicionan por separado. La pantalla gira a la orientación que " +
             "elijas para que coloques el panel tal como aparecerá."
+    override val editWhichLayoutWidthBody get() =
+        "El retrato y el paisaje tienen cada uno su propio ancho. La pantalla gira a la orientación " +
+            "que elijas para que ajustes la hoja tal como aparecerá."
 
     override val orientationPortrait get() = "Retrato"
     override val orientationLandscape get() = "Paisaje"
@@ -286,6 +298,9 @@ object SpanishStrings : Strings() {
 
     override val liveEditPositionHint get() = "Arrastra el panel o escribe X / Y (dp)"
     override val liveEditResetPosition get() = "Restablecer la posición"
+    override val liveEditWidthHint get() =
+        "Desliza para ajustar el ancho de la hoja en esta orientación"
+    override val liveEditResetWidth get() = "Restablecer el ancho"
     override val liveEditColourHint get() =
         "Toca el panel o una muestra y luego ajusta o escribe un color"
     override val liveEditUseDefault get() = "Usar el predeterminado"

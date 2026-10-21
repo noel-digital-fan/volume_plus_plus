@@ -38,14 +38,14 @@ import com.volume_plus_plus.app.overlay.OverlayVersion
 
 /**
  * The per-version edit menu. Each [OverlayVersion] (Android 7–15) opens its own hub, from which the
- * two independent on-screen editors are launched: **Edit position** (which first asks which
- * orientation to lay out) and **Edit colours**. Both open the real panel on top of the screen to edit
- * directly, and everything saves against this version alone — no other style is affected.
+ * three independent on-screen editors are launched: **Edit position** and **Edit width** (which both
+ * first ask which orientation to lay out) and **Edit colours**. All open the real panel on top of the
+ * screen to edit directly, and everything saves against this version alone — no other style is
+ * affected.
  *
- * Below them sit the matching restores — **Restore default position** and **Restore default
- * colours** — so a style can be put back to how it ships without hunting the edit back by hand.
- * Each asks to confirm first (they throw away work), and each undoes only its own half: restoring the
- * position keeps the colours, and vice versa.
+ * Below them sit the matching restores — **Restore default position**, **Restore default width** and
+ * **Restore default colours** — so a style can be put back to how it ships without hunting the edit
+ * back by hand. Each asks to confirm first (they throw away work), and each undoes only its own part.
  */
 @Composable
 fun OverlayEditHub(
@@ -54,11 +54,14 @@ fun OverlayEditHub(
     onBack: () -> Unit,
     onEditColors: () -> Unit,
     onEditPosition: (EditOrientation) -> Unit,
+    onEditWidth: (EditOrientation) -> Unit,
     onRestorePosition: () -> Unit,
+    onRestoreWidth: () -> Unit,
     onRestoreColors: () -> Unit,
 ) {
     val s = strings()
-    var chooseOrientation by remember { mutableStateOf(false) }
+    // Which orientation-asking editor the layout dialog is open for, if any.
+    var chooseOrientation by remember { mutableStateOf<OrientedEditor?>(null) }
     var confirmRestore by remember { mutableStateOf<RestoreTarget?>(null) }
 
     Column(
@@ -77,7 +80,7 @@ fun OverlayEditHub(
         )
 
         FilledTonalButton(
-            onClick = { chooseOrientation = true },
+            onClick = { chooseOrientation = OrientedEditor.POSITION },
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp, vertical = 6.dp),
@@ -85,6 +88,20 @@ fun OverlayEditHub(
 
         Text(
             text = s.editPositionHint,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 2.dp),
+        )
+
+        FilledTonalButton(
+            onClick = { chooseOrientation = OrientedEditor.WIDTH },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 6.dp),
+        ) { Text(s.editWidth) }
+
+        Text(
+            text = s.editWidthHint,
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 2.dp),
@@ -127,6 +144,13 @@ fun OverlayEditHub(
         ) { Text(s.editRestorePosition) }
 
         OutlinedButton(
+            onClick = { confirmRestore = RestoreTarget.WIDTH },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 6.dp),
+        ) { Text(s.editRestoreWidth) }
+
+        OutlinedButton(
             onClick = { confirmRestore = RestoreTarget.COLORS },
             modifier = Modifier
                 .fillMaxWidth()
@@ -136,12 +160,13 @@ fun OverlayEditHub(
         Spacer(Modifier.height(24.dp))
     }
 
-    if (chooseOrientation) {
+    chooseOrientation?.let { editor ->
         OrientationDialog(
-            onDismiss = { chooseOrientation = false },
+            body = if (editor == OrientedEditor.WIDTH) s.editWhichLayoutWidthBody else s.editWhichLayoutBody,
+            onDismiss = { chooseOrientation = null },
             onPick = {
-                chooseOrientation = false
-                onEditPosition(it)
+                chooseOrientation = null
+                if (editor == OrientedEditor.WIDTH) onEditWidth(it) else onEditPosition(it)
             },
         )
     }
@@ -155,6 +180,7 @@ fun OverlayEditHub(
                 confirmRestore = null
                 when (target) {
                     RestoreTarget.POSITION -> onRestorePosition()
+                    RestoreTarget.WIDTH -> onRestoreWidth()
                     RestoreTarget.COLORS -> onRestoreColors()
                 }
             },
@@ -162,8 +188,11 @@ fun OverlayEditHub(
     }
 }
 
-/** Which half of the style the hub is about to restore — also what its confirmation is asking about. */
-private enum class RestoreTarget { POSITION, COLORS }
+/** Which part of the style the hub is about to restore — also what its confirmation is asking about. */
+private enum class RestoreTarget { POSITION, WIDTH, COLORS }
+
+/** The editors that are set per orientation, and so ask which layout before opening. */
+private enum class OrientedEditor { POSITION, WIDTH }
 
 /** Confirms a restore before it throws away that half of the style's edits. */
 @Composable
@@ -174,14 +203,24 @@ private fun RestoreDialog(
     onConfirm: () -> Unit,
 ) {
     val s = strings()
-    val position = target == RestoreTarget.POSITION
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (position) s.editRestorePosition else s.editRestoreColours) },
+        title = {
+            Text(
+                when (target) {
+                    RestoreTarget.POSITION -> s.editRestorePosition
+                    RestoreTarget.WIDTH -> s.editRestoreWidth
+                    RestoreTarget.COLORS -> s.editRestoreColours
+                },
+            )
+        },
         text = {
             Text(
-                if (position) s.editRestorePositionBody(version.label)
-                else s.editRestoreColoursBody(version.label),
+                when (target) {
+                    RestoreTarget.POSITION -> s.editRestorePositionBody(version.label)
+                    RestoreTarget.WIDTH -> s.editRestoreWidthBody(version.label)
+                    RestoreTarget.COLORS -> s.editRestoreColoursBody(version.label)
+                },
             )
         },
         confirmButton = { TextButton(onClick = onConfirm) { Text(s.editRestoreConfirm) } },
@@ -189,14 +228,14 @@ private fun RestoreDialog(
     )
 }
 
-/** Asks which layout to position — portrait or landscape — before opening the position editor. */
+/** Asks which layout to edit — portrait or landscape — before opening the position or width editor. */
 @Composable
-private fun OrientationDialog(onDismiss: () -> Unit, onPick: (EditOrientation) -> Unit) {
+private fun OrientationDialog(body: String, onDismiss: () -> Unit, onPick: (EditOrientation) -> Unit) {
     val s = strings()
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(s.editWhichLayout) },
-        text = { Text(s.editWhichLayoutBody) },
+        text = { Text(body) },
         confirmButton = {
             TextButton(onClick = { onPick(EditOrientation.LANDSCAPE) }) {
                 Text(EditOrientation.LANDSCAPE.label(s))

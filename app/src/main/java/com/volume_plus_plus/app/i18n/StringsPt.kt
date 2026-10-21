@@ -247,13 +247,17 @@ object PortugueseStrings : Strings() {
     override fun editStyleTitle(style: String) = "Editar $style"
 
     override fun editStyleIntro(style: String) =
-        "Personalize este estilo separadamente. A posição e as cores são editadas à parte, e apenas " +
-            "$style é alterado."
+        "Personalize este estilo separadamente. A posição, a largura e as cores são editadas à " +
+            "parte, e apenas $style é alterado."
 
     override val editPosition get() = "Editar a posição"
     override val editPositionHint get() =
         "O painel real abre sobre a sua tela — arraste-o exatamente para onde quiser e depois salve " +
             "ou cancele na barra flutuante."
+    override val editWidth get() = "Editar a largura"
+    override val editWidthHint get() =
+        "A largura do painel expandido, separada para retrato e paisagem. O painel real abre sobre " +
+            "a sua tela — ajuste a largura e depois salve ou cancele."
     override val editColours get() = "Editar as cores"
     override val editColoursHint get() =
         "O painel abre sobre a sua tela — toque em uma parte dele (ou em uma amostra), ajuste a cor " +
@@ -261,9 +265,10 @@ object PortugueseStrings : Strings() {
 
     override val editRestoreDefaults get() = "Restaurar os padrões"
     override val editRestoreDefaultsHint get() =
-        "Desfaz as suas edições neste estilo. A posição e as cores são " +
+        "Desfaz as suas edições neste estilo. A posição, a largura e as cores são " +
             "restauradas separadamente, e nenhum outro estilo é alterado."
     override val editRestorePosition get() = "Restaurar a posição padrão"
+    override val editRestoreWidth get() = "Restaurar a largura padrão"
     override val editRestoreColours get() = "Restaurar as cores padrão"
 
     override fun editRestorePositionBody(style: String) =
@@ -271,16 +276,23 @@ object PortugueseStrings : Strings() {
             "paisagem? As cores dele são mantidas."
     override fun editRestoreColoursBody(style: String) =
         "Voltar todas as cores do $style para as que este estilo traz, e o painel expandido para " +
-            "largura e opacidade totais? O lugar onde você o posicionou é mantido."
+            "opacidade total? O lugar onde você o posicionou é mantido."
+    override fun editRestoreWidthBody(style: String) =
+        "Voltar o painel expandido do $style para a largura total, em retrato e em paisagem? A " +
+            "posição e as cores são mantidas."
     override val editRestoreConfirm get() = "Restaurar"
 
     override fun editRestoredPosition(style: String) = "Posição do $style restaurada"
     override fun editRestoredColours(style: String) = "Cores do $style restauradas"
+    override fun editRestoredWidth(style: String) = "Largura do $style restaurada"
 
     override val editWhichLayout get() = "Qual orientação?"
     override val editWhichLayoutBody get() =
         "Retrato e paisagem são posicionados separadamente. A tela gira para a orientação que você " +
             "escolher, para que posicione o painel exatamente como ele vai aparecer."
+    override val editWhichLayoutWidthBody get() =
+        "Retrato e paisagem têm cada um a sua própria largura. A tela gira para a orientação que " +
+            "você escolher, para que ajuste o painel exatamente como ele vai aparecer."
 
     override val orientationPortrait get() = "Retrato"
     override val orientationLandscape get() = "Paisagem"
@@ -289,6 +301,9 @@ object PortugueseStrings : Strings() {
 
     override val liveEditPositionHint get() = "Arraste o painel ou digite X / Y (dp)"
     override val liveEditResetPosition get() = "Redefinir a posição"
+    override val liveEditWidthHint get() =
+        "Deslize para ajustar a largura do painel nesta orientação"
+    override val liveEditResetWidth get() = "Redefinir a largura"
     override val liveEditColourHint get() =
         "Toque no painel ou em uma amostra e depois ajuste ou digite uma cor"
     override val liveEditUseDefault get() = "Usar o padrão"
