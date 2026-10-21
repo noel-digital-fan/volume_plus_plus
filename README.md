@@ -52,8 +52,13 @@ never individual apps. Volume++ replaces that panel outright and fills in both g
   call slider takes over as the main control, media moves beside it, and the volume keys drive the
   call. A cellular call and an app's own voice or video chat both count.
 - **A media volume booster**, off by default: once media volume is at 100%, pressing Volume Up
-  twice engages up to +20% of extra gain in 5% steps, shown as its own bar above the media
-  slider. A *held* key never engages it — only deliberate presses — and it clears itself when you
+  twice engages extra gain in 5-percentage-point steps, shown as its own bar above the media
+  slider. **Maximum boosted volume** in Overlay remembers a ceiling from **120% to 150%**, with
+  **120%** as the default. Each displayed 5 points requests 1.5 dB: 120% is +6 dB and 150% is
+  +15 dB, rather than a linear amplitude percentage. Raising the ceiling leaves the current gain
+  alone; lowering it immediately limits an active boost. Actual loudness depends on the device
+  and material, and higher gain can distort. A *held* key never engages it — only deliberate
+  presses — and it clears itself when you
   drop below 100% or change audio output.
 - **Four languages**, picked in the app or followed from the device: English, Español, Português
   and Français.
@@ -247,6 +252,14 @@ Translations are plain Kotlin files with a per-key English fallback, so a partia
 perfectly usable — adding a language is two edits, documented in [docs/TRANSLATING.md](docs/TRANSLATING.md).
 
 ## Release history
+
+### 2.1.0
+
+- Configurable media boost ceiling in Overlay: 120–150% in 5-percentage-point steps,
+  remembered across restarts, with 120% as the default. The setting also displays the target gain
+  in dB. Raising the ceiling leaves the current gain alone; lowering it limits an active boost.
+- Serialized gain updates keep a later reduction or reset from being overwritten by an older
+  request. Switching back to the system volume panel clears an active boost.
 
 ### 2.0
 

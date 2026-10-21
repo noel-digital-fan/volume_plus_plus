@@ -239,16 +239,29 @@ open class Strings {
             "and off needs Shizuku or root; without either, the button opens Live Caption settings."
 
     open val overlayMediaBoost get() = "Media volume booster"
-    open val overlayMediaBoostDetail get() =
-        "At 100%, press Volume Up twice to go louder still — up to 120%."
+    open fun overlayMediaBoostDetail(maxPercent: Int) =
+        "At 100%, press Volume Up twice to go louder still — up to ${percent(maxPercent)}."
     open val overlayMediaBoostUnavailable get() =
         "This device won't let Volume++ boost the volume. Shizuku or root may make it possible."
-    open val overlayMediaBoostInfo get() =
-        "The booster adds up to 6 dB of gain on top of a volume that is already at maximum, so the " +
+    open fun overlayMediaBoostInfo(gainMillibels: Int) =
+        "The booster requests up to ${boostDecibels(gainMillibels)} dB of gain on top of a volume " +
+            "that is already at maximum, so the " +
             "output goes past what the manufacturer tuned the speakers for.\n\n" +
             "Expect distortion on loud material, and be careful with headphones: sustained " +
             "listening at boosted volume can damage your hearing. The boost clears itself whenever " +
             "you drop below 100% or change audio output."
+
+    open val overlayMediaBoostLimit get() = "Maximum boosted volume"
+    open val overlayMediaBoostLimitInfo get() =
+        "Sets the ceiling, not the current volume. Raising it does not turn the sound up; use " +
+            "Volume Up to increase the boost. Lowering it immediately limits an active boost.\n\n" +
+            "Each 5 percentage points represents 1.5 dB of target gain, not a linear amplitude " +
+            "percentage. The actual increase depends on the device and audio."
+    open fun overlayMediaBoostValue(maxPercent: Int, gainMillibels: Int) =
+        "${percent(maxPercent)} · +${boostDecibels(gainMillibels)} dB"
+
+    private fun boostDecibels(gainMillibels: Int): String =
+        java.text.DecimalFormat("0.#").format(gainMillibels / 100.0)
 
     open val overlayRememberAppVolumes get() = "Remember each app's volume"
     open val overlayRememberAppVolumesDetail get() =

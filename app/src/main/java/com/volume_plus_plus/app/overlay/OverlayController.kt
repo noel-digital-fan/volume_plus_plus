@@ -272,6 +272,7 @@ class OverlayController(
     /** The Live Caption toggle currently on screen, retinted in place as its state flips. */
     private var captionButton: ImageView? = null
     private val captionManager by lazy { context.getSystemService(CaptioningManager::class.java) }
+    private val boostStateListener: () -> Unit = { refreshBoost() }
     /** The Android 9–11 ringer button currently on screen, so a mode change can retint it in place
      *  instead of rebuilding the whole panel (which cancels the app-sync load and drops frames, and
      *  is what made rapid mode taps feel laggy). */
@@ -614,6 +615,7 @@ class OverlayController(
     }
 
     fun show() {
+        if (!isEditor()) MediaBooster.addStateListener(boostStateListener)
         // In live-edit the component being edited decides whether the expanded sheet is drawn (the
         // output picker also draws the sheet, then layers its modal on top). A version with no separate
         // expanded panel (Android 7–8) instead shows its single panel fully expanded, so every row is
@@ -787,6 +789,7 @@ class OverlayController(
     }
 
     fun destroy() {
+        MediaBooster.removeStateListener(boostStateListener)
         hide()
         scope.coroutineContext[Job]?.cancel()
     }

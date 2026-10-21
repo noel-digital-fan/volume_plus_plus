@@ -7,6 +7,7 @@ import android.graphics.Paint
 import android.graphics.RectF
 import android.util.TypedValue
 import android.view.View
+import com.volume_plus_plus.app.audio.BoostPolicy
 import com.volume_plus_plus.app.i18n.Localization
 import kotlin.math.min
 import kotlin.math.roundToInt
@@ -74,7 +75,7 @@ class BoostBar(
         val track = dp(TRACK_DP)
         val cy = height / 2f
         // The label keeps its own reserved column, so the track never changes length as the number
-        // goes from 105% to 120%.
+        // goes from 105% to the maximum configurable ceiling.
         val labelW = if (showLabel) labelPaint.measureText(fullScaleLabel()) + dp(6f) else 0f
         val right = width - labelW
         val radius = track / 2f
@@ -121,7 +122,7 @@ class BoostBar(
 
     /** Measured against the widest value this can ever show, so the column is stable. */
     private fun fullScaleLabel(): String =
-        Localization.strings.percent(100 + MediaBooster.MAX_STEPS * MediaBooster.PERCENT_PER_STEP)
+        Localization.strings.percent(BoostPolicy.percent(BoostPolicy.HARD_MAX_STEPS))
 
     private fun dp(value: Float): Float = TypedValue.applyDimension(
         TypedValue.COMPLEX_UNIT_DIP, value, resources.displayMetrics,

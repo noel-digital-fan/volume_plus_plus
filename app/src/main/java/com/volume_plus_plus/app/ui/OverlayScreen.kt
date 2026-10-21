@@ -45,6 +45,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
@@ -63,6 +64,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import com.volume_plus_plus.app.R
+import com.volume_plus_plus.app.audio.BoostPolicy
 import com.volume_plus_plus.app.config.AppConfig
 import com.volume_plus_plus.app.data.OverlayCustomizationPrefs
 import com.volume_plus_plus.app.data.OverlayPrefs
@@ -195,8 +197,16 @@ private fun OverlaySetup(
     val hasLiveCaption = remember { liveCaptionAvailable(context) }
     var rememberAppVolumes by remember { mutableStateOf(prefs.isRememberAppVolumesEnabled()) }
     var mediaBoost by remember { mutableStateOf(prefs.isMediaBoostEnabled()) }
+    var mediaBoostMaxSteps by remember { mutableIntStateOf(prefs.getMediaBoostMaxSteps()) }
     var boostAvailable by remember {
         mutableStateOf(MediaBooster.availability != MediaBooster.Availability.UNAVAILABLE)
+    }
+    DisposableEffect(Unit) {
+        val listener: () -> Unit = {
+            boostAvailable = MediaBooster.availability != MediaBooster.Availability.UNAVAILABLE
+        }
+        MediaBooster.addStateListener(listener)
+        onDispose { MediaBooster.removeStateListener(listener) }
     }
     var holdFollowScale by remember { mutableStateOf(prefs.getHoldFollowScale()) }
     var holdSettleScale by remember { mutableStateOf(prefs.getHoldSettleScale()) }
@@ -234,6 +244,7 @@ private fun OverlaySetup(
         liveCaptionButton = prefs.isLiveCaptionButtonEnabled()
         rememberAppVolumes = prefs.isRememberAppVolumesEnabled()
         mediaBoost = prefs.isMediaBoostEnabled()
+        mediaBoostMaxSteps = prefs.getMediaBoostMaxSteps()
         // The user may have just set Shizuku or root up on the Mixing tab, which can turn a device
         // that couldn't boost into one that can.
         MediaBooster.refreshAvailability()
@@ -345,6 +356,7 @@ private fun OverlaySetup(
             onCheckedChange = {
                 systemVolumePanel = it
                 prefs.setSystemVolumePanelEnabled(it)
+                if (it) MediaBooster.reset()
             },
             highlight = highlight.value,
             modifier = Modifier.onGloballyPositioned {
@@ -413,10 +425,10 @@ private fun OverlaySetup(
         // panel in charge.
         SettingSwitch(
             title = s.overlayMediaBoost,
-            subtitle = if (boostAvailable) s.overlayMediaBoostDetail
+            subtitle = if (boostAvailable) s.overlayMediaBoostDetail(BoostPolicy.percent(mediaBoostMaxSteps))
             else s.overlayMediaBoostUnavailable,
             // The ⓘ carries the distortion and hearing warning, the way the step-haptics row does.
-            info = s.overlayMediaBoostInfo,
+            info = s.overlayMediaBoostInfo(BoostPolicy.gain(mediaBoostMaxSteps)),
             // Greyed with the system-panel switch, since the boost rides on volume keys we no longer
             // handle, and greyed when the platform simply refuses to give us the gain.
             checked = mediaBoost && boostAvailable,
@@ -425,6 +437,26 @@ private fun OverlaySetup(
                 mediaBoost = it
                 prefs.setMediaBoostEnabled(it)
                 if (!it) MediaBooster.reset()
+            },
+        )
+        SettingSlider(
+            title = s.overlayMediaBoostLimit,
+            value = BoostPolicy.percent(mediaBoostMaxSteps) / 100f,
+            valueRange = (BoostPolicy.percent(BoostPolicy.MIN_MAX_STEPS) / 100f)..
+                (BoostPolicy.percent(BoostPolicy.HARD_MAX_STEPS) / 100f),
+            steps = BoostPolicy.HARD_MAX_STEPS - BoostPolicy.MIN_MAX_STEPS - 1,
+            valueText = s.overlayMediaBoostValue(
+                BoostPolicy.percent(mediaBoostMaxSteps), BoostPolicy.gain(mediaBoostMaxSteps),
+            ),
+            info = s.overlayMediaBoostLimitInfo,
+            enabled = styleEnabled && mediaBoost && boostAvailable,
+            onValueChange = { value ->
+                val limit = BoostPolicy.normalizeMaxSteps(
+                    ((value * 100 - 100) / BoostPolicy.PERCENT_PER_STEP).roundToInt(),
+                )
+                mediaBoostMaxSteps = limit
+                prefs.setMediaBoostMaxSteps(limit)
+                MediaBooster.setMaxSteps(limit)
             },
         )
         SettingSwitch(
@@ -578,6 +610,7 @@ private fun SettingSlider(
     enabled: Boolean = true,
     onValueChange: (Float) -> Unit,
     onStepChange: ((Float) -> Unit)? = null,
+    valueText: String? = null,
 ) {
     val s = strings()
     // One notch of the slider's own grid, so a stepped value always lands on a position a drag could
@@ -606,7 +639,7 @@ private fun SettingSlider(
                     Text(
                         // Rounded, not truncated: a stepper makes an off-by-one readout obvious,
                         // where a drag past it never stopped long enough to be noticed.
-                        text = strings().percent((value * 100).roundToInt()),
+                        text = valueText ?: strings().percent((value * 100).roundToInt()),
                         style = MaterialTheme.typography.bodySmall,
                         color = if (enabled) MaterialTheme.colorScheme.onSurfaceVariant
                         else disabledContentColor(),

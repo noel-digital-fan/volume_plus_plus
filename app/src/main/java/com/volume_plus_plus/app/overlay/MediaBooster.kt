@@ -7,10 +7,12 @@ import android.media.AudioManager
 import android.media.audiofx.LoudnessEnhancer
 import android.os.Handler
 import android.os.Looper
+import com.volume_plus_plus.app.audio.BoostPolicy
+import com.volume_plus_plus.app.audio.GainWriter
+import com.volume_plus_plus.app.data.OverlayPrefs
 import com.volume_plus_plus.app.privileged.PrivilegedManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -41,10 +43,16 @@ import kotlinx.coroutines.withContext
  *
  * "120%" is a loudness label, not an amplitude one. Read literally it would mean 1.2x the signal,
  * which is +1.6 dB — barely audible, and the feature would be pointless. Each 5% notch is instead
- * [GAIN_PER_STEP_MB], so full boost is +6 dB: double the amplitude, and clearly louder without
- * running so hot that everything clips.
+ * [BoostPolicy.GAIN_PER_STEP_MB]. The default ceiling is +6 dB (120%); the user may raise it
+ * to +15 dB (150%). These are target gains, not guaranteed increases in measured loudness.
  */
 object MediaBooster {
+
+    private val listeners = mutableSetOf<() -> Unit>()
+
+    fun addStateListener(listener: () -> Unit) { listeners.add(listener) }
+    fun removeStateListener(listener: () -> Unit) { listeners.remove(listener) }
+    private fun notifyStateChanged() { listeners.toList().forEach { it() } }
 
     /** How the gain is being applied, or why it can't be. */
     enum class Availability { UNKNOWN, IN_PROCESS, PRIVILEGED, UNAVAILABLE }
@@ -54,17 +62,23 @@ object MediaBooster {
 
     @Volatile
     var availability: Availability = Availability.UNKNOWN
+        private set(value) {
+            field = value
+            notifyStateChanged()
+        }
+
+    var maxSteps: Int = BoostPolicy.DEFAULT_MAX_STEPS
         private set
 
-    /** Boost notches applied, 0..[MAX_STEPS]. 0 means no boost and no bar. */
+    /** Boost notches applied, 0..[maxSteps]. 0 means no boost and no bar. */
     var steps: Int = 0
         private set
 
     val active: Boolean get() = steps > 0
     /** 0f..1f across the boost range, for the bar's fill. */
-    val fraction: Float get() = steps / MAX_STEPS.toFloat()
-    /** 100, 105 … 120 — what the bar's label reads. */
-    val percent: Int get() = 100 + steps * PERCENT_PER_STEP
+    val fraction: Float get() = steps / maxSteps.toFloat()
+    /** The display scale, independent of the selected ceiling. */
+    val percent: Int get() = BoostPolicy.percent(steps)
 
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private val handler = Handler(Looper.getMainLooper())
@@ -72,7 +86,28 @@ object MediaBooster {
     private var appContext: Context? = null
     private var audioManager: AudioManager? = null
     private var effect: LoudnessEnhancer? = null
-    private var gainJob: Job? = null
+    private val gainWriter = GainWriter(scope, apply = { target ->
+        val success = pushGain(target)
+        if (!success && target > 0) pushGain(0)
+        success
+    }, onFailure = {
+        steps = 0
+        availability = Availability.UNAVAILABLE
+    })
+
+    /** Changing the ceiling never raises the active gain. Call on the main thread. */
+    fun setMaxSteps(value: Int) {
+        val limit = BoostPolicy.normalizeMaxSteps(value)
+        if (maxSteps == limit) return
+        maxSteps = limit
+        armCount = 0
+        if (steps > limit) {
+            steps = limit
+            applyGain()
+        } else {
+            notifyStateChanged()
+        }
+    }
 
     /** Consecutive raises at maximum volume that haven't yet engaged the boost, and when the last
      *  one landed — the "press Volume Up twice at 100%" arming. */
@@ -89,13 +124,27 @@ object MediaBooster {
         override fun onAudioDevicesRemoved(removedDevices: Array<out AudioDeviceInfo>?) = reset()
     }
     private var callbackRegistered = false
+    private var probing = false
+
+    private fun requestProbe() {
+        if (probing) return
+        probing = true
+        scope.launch {
+            try {
+                probe()
+            } finally {
+                probing = false
+            }
+        }
+    }
 
     // ── lifecycle ─────────────────────────────────────────────────────────────────────────────────
 
-    /** Idempotent. Probes availability off the main thread; safe to call from any entry point. */
+    /** Idempotent. Call on the main thread; availability is probed off the main thread. */
     fun init(context: Context) {
         val app = context.applicationContext
         appContext = app
+        setMaxSteps(OverlayPrefs(app).getMediaBoostMaxSteps())
         if (audioManager == null) {
             audioManager = app.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
         }
@@ -103,7 +152,7 @@ object MediaBooster {
             runCatching { audioManager?.registerAudioDeviceCallback(deviceCallback, handler) }
                 .onSuccess { callbackRegistered = true }
         }
-        if (availability == Availability.UNKNOWN) scope.launch { probe() }
+        if (availability == Availability.UNKNOWN) requestProbe()
     }
 
     /**
@@ -114,11 +163,10 @@ object MediaBooster {
     fun shutdown() {
         steps = 0
         armCount = 0
-        gainJob?.cancel()
-        gainJob = null
         // Push zero *before* releasing — releasing alone doesn't guarantee the privileged process
         // drops its own enhancer.
-        scope.launch { pushGain(0) }
+        gainWriter.submit(0)
+        notifyStateChanged()
         if (callbackRegistered) {
             runCatching { audioManager?.unregisterAudioDeviceCallback(deviceCallback) }
             callbackRegistered = false
@@ -152,7 +200,9 @@ object MediaBooster {
      * stalled at the top for four ticks before descending would just feel broken.
      */
     fun handleKey(direction: Int, atMax: Boolean, fromAutoRepeat: Boolean): Verdict {
-        if (availability == Availability.UNAVAILABLE) return Verdict.PASS
+        if (availability == Availability.UNAVAILABLE || availability == Availability.UNKNOWN) {
+            return Verdict.PASS
+        }
 
         if (direction < 0) {
             armCount = 0
@@ -169,7 +219,7 @@ object MediaBooster {
             return Verdict.PASS
         }
         if (steps > 0) {
-            if (steps >= MAX_STEPS) return Verdict.CONSUMED
+            if (steps >= maxSteps) return Verdict.CONSUMED
             steps++
             applyGain()
             return Verdict.CONSUMED
@@ -197,34 +247,30 @@ object MediaBooster {
      * happens off the key path and only the latest target matters.
      */
     private fun applyGain() {
-        val target = steps * GAIN_PER_STEP_MB
-        gainJob?.cancel()
-        gainJob = scope.launch {
-            if (!pushGain(target)) {
-                // The gain we thought we had is gone. Stop claiming otherwise.
-                availability = Availability.UNAVAILABLE
-                steps = 0
-            }
-        }
+        gainWriter.submit(BoostPolicy.gain(steps))
+        notifyStateChanged()
     }
 
-    private suspend fun pushGain(millibels: Int): Boolean = when (availability) {
-        Availability.IN_PROCESS -> withContext(Dispatchers.IO) {
-            runCatching {
-                if (millibels == 0) {
-                    releaseInProcess()
-                } else {
+    private suspend fun pushGain(millibels: Int): Boolean {
+        // Zero must still release both possible backends after a failure or disconnect.
+        if (millibels == 0) {
+            withContext(Dispatchers.IO) { releaseInProcess() }
+            return !PrivilegedManager.isReady || PrivilegedManager.setLoudnessGain(0)
+        }
+        return when (availability) {
+            Availability.IN_PROCESS -> withContext(Dispatchers.IO) {
+                runCatching {
                     val fx = effect ?: LoudnessEnhancer(GLOBAL_SESSION).also {
                         it.enabled = true
                         effect = it
                     }
                     fx.setTargetGain(millibels)
-                }
-            }.isSuccess
-        }
+                }.isSuccess
+            }
 
-        Availability.PRIVILEGED -> PrivilegedManager.setLoudnessGain(millibels)
-        else -> false
+            Availability.PRIVILEGED -> PrivilegedManager.setLoudnessGain(millibels)
+            else -> false
+        }
     }
 
     private fun releaseInProcess() {
@@ -264,17 +310,10 @@ object MediaBooster {
     fun refreshAvailability() {
         if (availability == Availability.PRIVILEGED || availability == Availability.IN_PROCESS) return
         availability = Availability.UNKNOWN
-        scope.launch { probe() }
+        requestProbe()
     }
 
     private const val GLOBAL_SESSION = 0
-
-    /** Four notches of 5% each: 105, 110, 115, 120. */
-    const val MAX_STEPS = 4
-    const val PERCENT_PER_STEP = 5
-
-    /** 1.5 dB per notch, so full boost is 600 mB = +6 dB. */
-    private const val GAIN_PER_STEP_MB = 150
 
     /** Raises at maximum needed to engage the boost — "press Volume Up twice at 100%". */
     private const val ARM_PRESSES = 2
