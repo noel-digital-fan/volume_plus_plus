@@ -115,9 +115,10 @@ class OverlayPrefs(context: Context) {
 
     /**
      * Whether the expanded sheet lists a slider per playing app above the stream rows rather
-     * than below them. Off by default, matching the stock order (streams first).
+     * than below them. On by default: the per-app sliders are what Volume++ is for, so a fresh
+     * setup puts them nearest; switching it off gives back the stock order (streams first).
      */
-    fun isAppsFirstEnabled(): Boolean = prefs.getBoolean(KEY_APPS_FIRST, false)
+    fun isAppsFirstEnabled(): Boolean = prefs.getBoolean(KEY_APPS_FIRST, true)
 
     fun setAppsFirstEnabled(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_APPS_FIRST, enabled).apply()
