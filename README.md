@@ -37,7 +37,9 @@ never individual apps. Volume++ replaces that panel outright and fills in both g
   expanded sheet, output picker) per orientation by dragging it around the screen, and a color
   editor that lets you tap any element of the panel — background, slider fill/track, icons,
   accent, text, buttons — to recolor it, independently for each Android-version skin. Colors can
-  be dialled in on a wheel or lifted straight off the screen with the **eyedropper**.
+  be dialled in on a wheel or lifted straight off the screen with the **eyedropper**. The expanded
+  sheet can also be narrowed (separately for portrait and landscape), docked to another edge or a
+  bottom corner, and made see-through.
 - **Per-app volume mixing**, via [Shizuku](https://github.com/RikkaApps/Shizuku) *or root*: the
   panel can show one volume slider per currently-playing app (not just per stream) and set that
   app's actual playback volume using a hidden system API, plus toggle whether an app is allowed to
@@ -82,8 +84,11 @@ is the app's, not the system's — which is the whole point.)*
 | <img src="docs/screenshots/panel-android13.png" width="230"> | <img src="docs/screenshots/panel-android14.png" width="230"> | <img src="docs/screenshots/panel-android15.png" width="230"> |
 
 They expand, too. Android 9 and up open a full sheet carrying every stream and one slider per
-playing app — including Android 15's "Audio will play on" media-output card — while the Android
-7–8 panel grows in place to add its Ring and Alarm rows:
+playing app — including Android 15's "Audio will play on" media-output card, which opens onto
+what's playing and, while casting, the cast device's own volume — while the Android 7–8 panel
+grows in place to add its Ring and Alarm rows. **Open the panel expanded** makes the first key
+press go straight to that full view, and **App sliders first** (on by default) lists the per-app
+sliders above the stream rows:
 
 <p align="center">
   <img src="docs/screenshots/panel-android15-expanded.png" width="260" alt="Android 15 expanded sheet">
@@ -113,7 +118,9 @@ there is no position in between.
 
 One switch per app: turn it on and that app keeps playing when something else starts. The tab
 needs a privileged helper — **Shizuku or root** — and walks you through whichever one you pick
-with a checklist that ticks itself off as you go.
+with a checklist that ticks itself off as you go. The switches show the app-op's real state, read
+back from the system each time the tab opens, so a change made elsewhere (over ADB, or by another
+tool) shows up here too.
 
 It also carries the fix for a side effect of sideloading: a build installed from GitHub records
 whichever browser or file manager opened it as its install source, which some banking apps flag as
@@ -134,9 +141,11 @@ Volume++ instead of Android's Sound settings. The motion and haptics sliders car
 − / + steppers as the Volume tab, so each can be set to an exact percentage.
 
 It also holds the **media volume booster** switch (off by default, with the clipping and hearing
-warning behind its ⓘ), the switch for **remembering each app's volume** across restarts, and the
-button that adds the **Quick Settings tile** — a way to open the panel that doesn't involve the
-volume keys at all, for a phone whose buttons have worn out.
+warning behind its ⓘ) and its **maximum boosted volume**, the switch for **remembering each app's
+volume** across restarts, **Open the panel expanded**, **App sliders first**, an optional **Live
+Caption button** for the panel (offered only on devices that have Live Caption), and the button
+that adds the **Volume Panel** Quick Settings tile — a way to open the panel that doesn't involve
+the volume keys at all, for a phone whose buttons have worn out.
 
 |                        Permissions                         |                          Styles                           |                        Motion & haptics                    |
 | :--------------------------------------------------------: | :-------------------------------------------------------: | :--------------------------------------------------------: |
@@ -153,14 +162,23 @@ against that style alone.
 
 - **Position** — the real panel is drawn on a dimmed backdrop and dragged where you want it, once
   per orientation. Every component moves independently: the main panel, the expanded sheet, and
-  (on Android 15 and 16) the media-output picker.
+  (on Android 15 and 16) the media-output picker. The expanded sheet can also be docked somewhere
+  else first — its stock edge, the bottom, a bottom corner, the centre or the top.
+- **Width** — the expanded sheet's width, from 50% of the screen to full, set separately for
+  portrait and landscape. Portrait starts at full width; landscape starts at 80% on Android 15 and
+  16, 75% on Android 9–14 and full width on Android 7–8.
 - **Colours** — tap any part of the panel to recolor it: background, slider fill and track, icons,
   accent, text, buttons. Colors are shared across orientations, so they're edited in whichever way
   the device happens to be held. **Use system colours** fills the whole palette from the device's
-  own Material You scheme in one tap (Android 12+), as a starting point you can then tune.
+  own Material You scheme in one tap (Android 12+), as a starting point you can then tune. The
+  expanded sheet's **opacity** is set here too; only its background fades, never its controls.
 - **Restore defaults** — **Restore default position** puts every one of that style's panels back
-  where it docks (both orientations), and **Restore default colours** drops its colour overrides.
-  Each undoes only its own half, and neither touches any other style.
+  where it docks (both orientations), **Restore default width** puts the sheet back at its default
+  widths, and **Restore default colours** drops its colour overrides. Each undoes only its own
+  part, and none touches any other style.
+
+The editor's floating bar scrolls when it would run off the screen, so even the colour editor fits
+a phone held in landscape.
 
 ### The eyedropper
 
@@ -255,11 +273,30 @@ perfectly usable — adding a language is two edits, documented in [docs/TRANSLA
 
 ### 2.1.0
 
-- Configurable media boost ceiling in Overlay: 120–150% in 5-percentage-point steps,
-  remembered across restarts, with 120% as the default. The setting also displays the target gain
-  in dB. Raising the ceiling leaves the current gain alone; lowering it limits an active boost.
-- Serialized gain updates keep a later reduction or reset from being overwritten by an older
-  request. Switching back to the system volume panel clears an active boost.
+- **A width editor for the expanded sheet**, separately for portrait and landscape. Landscape now
+  starts narrower — 80% on Android 15 and 16, 75% on Android 9–14 — and portrait at full width.
+- **Dock and opacity for the expanded sheet**: the position editor can dock it to its stock edge,
+  the bottom, a bottom corner, the centre or the top, and the colour editor sets how see-through
+  its background is.
+- **Open the panel expanded**: an Overlay switch that makes the first key press open every stream
+  and every playing app's slider at once, on every style.
+- **App sliders first**, on by default: the per-app sliders sit above the stream rows in the
+  expanded panel.
+- **The media card shows what's playing**: Android 15 and 16's "Audio will play on" picker now opens
+  with the playing app, title and artist, and a cast-volume row while casting.
+- **Live Caption button**, off by default, for devices that have Live Caption.
+- **Configurable media boost ceiling** in Overlay: 120–150% in 5-percentage-point steps,
+  remembered across restarts, with 120% as the default and the target gain shown in dB. Raising
+  the ceiling leaves the current gain alone; lowering it limits an active boost.
+- **The Mixing tab shows the real audio-focus state**, so a switch changed from outside the app
+  (ADB, another tool) no longer shows the wrong position.
+- **The Quick Settings tile is now "Volume Panel"**, and tapping it no longer sends a video app
+  into its mini player.
+- **Fully translated**: Español, Português and Français now cover every screen, including the
+  booster, the banking-app fix and the panel's stream labels.
+- **Fixes**: the editor bars scroll in landscape; serialized gain updates keep a later reduction or
+  reset from being overwritten by an older request; switching back to the system volume panel
+  clears an active boost.
 
 ### 2.0
 
