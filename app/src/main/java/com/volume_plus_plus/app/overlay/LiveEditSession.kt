@@ -461,7 +461,7 @@ class LiveEditSession(
 
     /**
      * The width editor's bar body: a hint, the sheet-width slider for the orientation being edited,
-     * and a Reset back to full width. Width only means anything on the expanded sheet, which is the
+     * and a Reset back to the style's default width. Width only means anything on the expanded sheet, which is the
      * one component this editor opens, so there's no component switch.
      */
     private fun buildWidthControls(panel: LinearLayout) {
@@ -479,7 +479,7 @@ class LiveEditSession(
         panel.addView(width, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
         val resetRow = LinearLayout(appCtx).apply { orientation = LinearLayout.HORIZONTAL }
         resetRow.addView(textAction(strings.liveEditResetWidth, onBar) {
-            config.withSheetWidth(1f)
+            config.withSheetWidth(null)
             applySheetLive()
             refreshSheetControls()
         })

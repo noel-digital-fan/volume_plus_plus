@@ -279,8 +279,8 @@ object FrenchStrings : Strings() {
         "Remettre toutes les couleurs de $style à celles fournies avec ce style, et son panneau " +
             "déplié en pleine opacité ? L'emplacement que vous lui avez donné est conservé."
     override fun editRestoreWidthBody(style: String) =
-        "Remettre le panneau déplié de $style en pleine largeur, en portrait et en paysage ? Sa " +
-            "position et ses couleurs sont conservées."
+        "Remettre le panneau déplié de $style à sa largeur par défaut, en portrait et en paysage ? " +
+            "Sa position et ses couleurs sont conservées."
     override val editRestoreConfirm get() = "Rétablir"
 
     override fun editRestoredPosition(style: String) = "Position de $style rétablie"

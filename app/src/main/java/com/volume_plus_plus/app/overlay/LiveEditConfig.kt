@@ -75,11 +75,14 @@ class LiveEditConfig(
      *  opacity and dock can be set. */
     fun editingSheet(): Boolean = component == version.sheetComponent()
 
-    /** The sheet's width (share of the display width) for the orientation being edited. */
-    fun sheetWidth(): Float = working.component(component).sheetWidth(orientation)
+    /** The sheet's width (share of the display width) for the orientation being edited — the one
+     *  set there, else the style's default. */
+    fun sheetWidth(): Float =
+        working.component(component).sheetWidth(orientation) ?: version.defaultSheetWidth(orientation)
 
-    /** Set the sheet's width for the orientation being edited; returns the new working copy. */
-    fun withSheetWidth(width: Float): VersionCustomization {
+    /** Set the sheet's width for the orientation being edited (null = back to the style's default);
+     *  returns the new working copy. */
+    fun withSheetWidth(width: Float?): VersionCustomization {
         val comp = working.component(component)
         working = working.withComponent(component, comp.withSheetWidth(orientation, width))
         return working

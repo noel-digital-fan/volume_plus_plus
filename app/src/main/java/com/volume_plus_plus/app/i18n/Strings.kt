@@ -360,8 +360,8 @@ open class Strings {
         "Put every $style colour back to the ones this style ships with, and its expanded sheet " +
             "back to full opacity? Where you've positioned it is kept."
     open fun editRestoreWidthBody(style: String) =
-        "Put the $style expanded sheet back to full width, in both portrait and landscape? Its " +
-            "position and colours are kept."
+        "Put the $style expanded sheet back to its default width, in both portrait and landscape? " +
+            "Its position and colours are kept."
     open val editRestoreConfirm get() = "Restore"
 
     /** Confirmation after a restore. [style] is an overlay style's name, e.g. `Android 15`. */

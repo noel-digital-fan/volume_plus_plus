@@ -278,8 +278,8 @@ object PortugueseStrings : Strings() {
         "Voltar todas as cores do $style para as que este estilo traz, e o painel expandido para " +
             "opacidade total? O lugar onde você o posicionou é mantido."
     override fun editRestoreWidthBody(style: String) =
-        "Voltar o painel expandido do $style para a largura total, em retrato e em paisagem? A " +
-            "posição e as cores são mantidas."
+        "Voltar o painel expandido do $style para a largura padrão, em retrato e em paisagem? " +
+            "A posição e as cores são mantidas."
     override val editRestoreConfirm get() = "Restaurar"
 
     override fun editRestoredPosition(style: String) = "Posição do $style restaurada"

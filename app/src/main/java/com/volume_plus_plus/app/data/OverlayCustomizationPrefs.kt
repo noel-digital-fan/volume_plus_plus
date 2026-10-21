@@ -72,8 +72,8 @@ class OverlayCustomizationPrefs(context: Context) {
         put("portrait", encodeOffset(c.portrait))
         put("landscape", encodeOffset(c.landscape))
         put("colors", encodeColors(c.colors))
-        if (c.portraitWidth != 1f) put("portraitWidth", c.portraitWidth.toDouble())
-        if (c.landscapeWidth != 1f) put("landscapeWidth", c.landscapeWidth.toDouble())
+        c.portraitWidth?.let { put("portraitWidth", it.toDouble()) }
+        c.landscapeWidth?.let { put("landscapeWidth", it.toDouble()) }
         if (c.sheetOpacity != 1f) put("sheetOpacity", c.sheetOpacity.toDouble())
     }
 
@@ -109,14 +109,16 @@ class OverlayCustomizationPrefs(context: Context) {
 
     private fun decodeComponent(json: JSONObject?): ComponentCustomization {
         if (json == null) return ComponentCustomization()
+        fun optWidth(key: String): Float? = if (json.has(key)) json.getDouble(key).toFloat() else null
+        // "sheetWidth" is the single width saved before it was split per orientation; it seeds
+        // both until one of them is set on its own. Absent, each falls back to the style's default.
+        val legacyWidth = optWidth("sheetWidth")
         return ComponentCustomization(
             portrait = decodeOffset(json.optJSONObject("portrait")),
             landscape = decodeOffset(json.optJSONObject("landscape")),
             colors = decodeColors(json.optJSONObject("colors")),
-            // "sheetWidth" is the single width saved before it was split per orientation; it seeds
-            // both until one of them is set on its own.
-            portraitWidth = json.optDouble("portraitWidth", json.optDouble("sheetWidth", 1.0)).toFloat(),
-            landscapeWidth = json.optDouble("landscapeWidth", json.optDouble("sheetWidth", 1.0)).toFloat(),
+            portraitWidth = optWidth("portraitWidth") ?: legacyWidth,
+            landscapeWidth = optWidth("landscapeWidth") ?: legacyWidth,
             sheetOpacity = json.optDouble("sheetOpacity", 1.0).toFloat(),
         )
     }

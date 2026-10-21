@@ -93,15 +93,16 @@ data class PanelColors(
 /**
  * One component's full customization: a position per orientation, and one shared colour set. The
  * expanded sheet also uses a width per orientation ([portraitWidth] / [landscapeWidth], each a share
- * of the display width, [MIN_SHEET_WIDTH]–1) and [sheetOpacity] (its background's opacity,
- * [MIN_SHEET_OPACITY]–1); every other component leaves them at 1.
+ * of the display width, [MIN_SHEET_WIDTH]–1, or null for the style's own default — see
+ * [defaultSheetWidth]) and [sheetOpacity] (its background's opacity, [MIN_SHEET_OPACITY]–1). Every
+ * other component leaves them unset.
  */
 data class ComponentCustomization(
     val portrait: PanelOffset = PanelOffset(),
     val landscape: PanelOffset = PanelOffset(),
     val colors: PanelColors = PanelColors(),
-    val portraitWidth: Float = 1f,
-    val landscapeWidth: Float = 1f,
+    val portraitWidth: Float? = null,
+    val landscapeWidth: Float? = null,
     val sheetOpacity: Float = 1f,
 ) {
     fun offset(orientation: EditOrientation): PanelOffset =
@@ -110,11 +111,13 @@ data class ComponentCustomization(
     fun withOffset(orientation: EditOrientation, offset: PanelOffset): ComponentCustomization =
         if (orientation == EditOrientation.LANDSCAPE) copy(landscape = offset) else copy(portrait = offset)
 
-    fun sheetWidth(orientation: EditOrientation): Float =
+    /** The width set for [orientation], or null when it's left at the style's default. */
+    fun sheetWidth(orientation: EditOrientation): Float? =
         if (orientation == EditOrientation.LANDSCAPE) landscapeWidth else portraitWidth
 
-    fun withSheetWidth(orientation: EditOrientation, width: Float): ComponentCustomization {
-        val w = width.coerceIn(MIN_SHEET_WIDTH, 1f)
+    /** Set [orientation]'s width; null puts it back on the style's default. */
+    fun withSheetWidth(orientation: EditOrientation, width: Float?): ComponentCustomization {
+        val w = width?.coerceIn(MIN_SHEET_WIDTH, 1f)
         return if (orientation == EditOrientation.LANDSCAPE) copy(landscapeWidth = w) else copy(portraitWidth = w)
     }
 }
@@ -152,9 +155,23 @@ fun ComponentCustomization.withDefaultOffsets(): ComponentCustomization =
 fun ComponentCustomization.withDefaultColors(): ComponentCustomization =
     copy(colors = PanelColors(), sheetOpacity = 1f)
 
-/** This component back at full width in both orientations, everything else untouched. */
+/** This component back at its style's default width in both orientations, everything else
+ *  untouched. */
 fun ComponentCustomization.withDefaultWidths(): ComponentCustomization =
-    copy(portraitWidth = 1f, landscapeWidth = 1f)
+    copy(portraitWidth = null, landscapeWidth = null)
+
+/**
+ * The width a style's expanded sheet starts at, as a share of the display width, until one is set
+ * in the width editor. Portrait spans the screen edge to edge; in landscape the Android 15 and 16
+ * sheets start at 80% and the Android 9–14 ones at 75%, while Android 7–8, which has no separate
+ * sheet, keeps the full width there too.
+ */
+fun OverlayVersion.defaultSheetWidth(orientation: EditOrientation): Float = when {
+    orientation == EditOrientation.PORTRAIT -> 1f
+    skin == OverlaySkin.ANDROID_7_8 -> 1f
+    iconSet?.usesOutputSheet == true -> 0.8f
+    else -> 0.75f
+}
 
 /**
  * The component that is this version's expanded sheet: [PanelComponent.EXPANDED] on Android 9+,
@@ -181,8 +198,8 @@ fun VersionCustomization.withDefaultColors(): VersionCustomization = VersionCust
     output = output.withDefaultColors(),
 )
 
-/** A whole version's sheet back at full width in both orientations, keeping everything else. Backs
- *  the edit hub's "restore default width". */
+/** A whole version's sheet back at its default width in both orientations, keeping everything
+ *  else. Backs the edit hub's "restore default width". */
 fun VersionCustomization.withDefaultWidths(): VersionCustomization = VersionCustomization(
     main = main.withDefaultWidths(),
     expanded = expanded.withDefaultWidths(),

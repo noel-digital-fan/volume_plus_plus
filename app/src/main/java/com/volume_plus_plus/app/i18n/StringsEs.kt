@@ -275,8 +275,8 @@ object SpanishStrings : Strings() {
         "¿Devolver todos los colores de $style a los que trae este estilo, y su hoja expandida a " +
             "opacidad completa? Se conserva donde lo hayas colocado."
     override fun editRestoreWidthBody(style: String) =
-        "¿Devolver la hoja expandida de $style al ancho completo, en retrato y en paisaje? Se " +
-            "conservan su posición y sus colores."
+        "¿Devolver la hoja expandida de $style a su ancho predeterminado, en retrato y en paisaje? " +
+            "Se conservan su posición y sus colores."
     override val editRestoreConfirm get() = "Restablecer"
 
     override fun editRestoredPosition(style: String) = "Posición de $style restablecida"
