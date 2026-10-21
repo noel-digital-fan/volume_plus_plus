@@ -260,7 +260,7 @@ open class Strings {
     open fun overlayMediaBoostValue(maxPercent: Int, gainMillibels: Int) =
         "${percent(maxPercent)} · +${boostDecibels(gainMillibels)} dB"
 
-    private fun boostDecibels(gainMillibels: Int): String =
+    protected fun boostDecibels(gainMillibels: Int): String =
         java.text.DecimalFormat("0.#").format(gainMillibels / 100.0)
 
     open val overlayRememberAppVolumes get() = "Remember each app's volume"

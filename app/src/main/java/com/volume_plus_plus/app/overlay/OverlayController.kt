@@ -1644,7 +1644,7 @@ class OverlayController(
             AudioManager.STREAM_MUSIC,
             tintedIcon(R.drawable.ic_stream_media),
             null,
-            if (seven) null else "Media",
+            if (seven) null else strings.streamMedia,
             if (callMode) ChevronDir.NONE else leadChevron,
             // The Nougat/Oreo muted note (the glyph is cut along the slash), not the modern overlay.
             mutedIcon = tintedIcon(R.drawable.ic_stream_media_off_78),
@@ -1661,8 +1661,8 @@ class OverlayController(
             tintedIcon(R.drawable.ic_stream_call),
             null,
             // "Call" is the stock label, and the short form its siblings already use rather than the
-            // sheet's "Call volume". Untranslated exactly as Media/Ring/Alarm are; localise together.
-            if (seven) null else "Call",
+            // sheet's "Call volume" — the same short stream names the Volume tab shows.
+            if (seven) null else strings.streamCall,
             // Placed by [applyGenericChevron], which puts it on the topmost visible row.
             ChevronDir.NONE,
             // No muted icon: the call stream's floor is 1 on nearly every device (see [streamMin]), so
@@ -1686,7 +1686,7 @@ class OverlayController(
             AudioManager.STREAM_RING,
             tintedIcon(R.drawable.ic_stream_ring),
             null,
-            if (seven) null else "Ring",
+            if (seven) null else strings.streamRing,
             ChevronDir.NONE,
             mutedIcon = tintedIcon(R.drawable.ic_ring_off),
             tieNotification = true,
@@ -1702,7 +1702,7 @@ class OverlayController(
             AudioManager.STREAM_ALARM,
             tintedIcon(R.drawable.ic_stream_alarm),
             null,
-            if (seven) null else "Alarm",
+            if (seven) null else strings.streamAlarm,
             ChevronDir.NONE,
             mutedIcon = tintedIcon(R.drawable.ic_stream_alarm_off),
         ) {}
@@ -2588,7 +2588,7 @@ class OverlayController(
             visibility = if (sheetCallOpen) View.VISIBLE else View.GONE
         }
         val callPill = if (!foldCall) null
-        else makePillSlider(R.drawable.ic_stream_call, "Call", AudioManager.STREAM_VOICE_CALL)
+        else makePillSlider(R.drawable.ic_stream_call, strings.streamCall, AudioManager.STREAM_VOICE_CALL)
         if (callPill != null) {
             rows.addView(
                 callFoldRow(callPill, body),
@@ -2604,22 +2604,22 @@ class OverlayController(
         }
 
         // Media keeps the note icon, switching only to Android 15's crossed speaker at mute.
-        addPillRow(body, R.drawable.ic_stream_media, "Media", AudioManager.STREAM_MUSIC, mutedIconRes = R.drawable.ic_ring_megaphone_off)
+        addPillRow(body, R.drawable.ic_stream_media, strings.streamMedia, AudioManager.STREAM_MUSIC, mutedIconRes = R.drawable.ic_ring_megaphone_off)
         // Under Media, which the volume keys still drive while this sheet is open.
         addBoostBar(body, index = body.childCount, vertical = false, showLabel = true)
         // 16 has already placed the call at the top; 15 keeps it here, second.
-        if (!foldCall) addPillRow(rows, R.drawable.ic_stream_call, "Call", AudioManager.STREAM_VOICE_CALL)
+        if (!foldCall) addPillRow(rows, R.drawable.ic_stream_call, strings.streamCall, AudioManager.STREAM_VOICE_CALL)
         // Ring swaps to the vibrate icon at zero; muting it makes Notification unavailable live;
         // raising it back
         // restores the Notification slider — matching the OS's linked ring/notification behaviour.
         addPillRow(
-            body, R.drawable.ic_stream_ring_phone, "Ring", AudioManager.STREAM_RING,
+            body, R.drawable.ic_stream_ring_phone, strings.streamRing, AudioManager.STREAM_RING,
             mutedIconRes = R.drawable.ic_ring_vibrate,
             afterChange = { refreshNotificationAvailability() },
         )
         // Both the active Notification slider and its greyed "unavailable" stand-in are laid out; only
         // the one matching the current ringer state is visible, and they swap live via the Ring row.
-        val notif = makePillSlider(R.drawable.ic_stream_notification, "Notification", AudioManager.STREAM_NOTIFICATION)
+        val notif = makePillSlider(R.drawable.ic_stream_notification, strings.streamNotification, AudioManager.STREAM_NOTIFICATION)
         val notifDisabled = disabledNotificationRow()
         notifSlider = notif
         notifSliderRow = notif
@@ -2627,7 +2627,7 @@ class OverlayController(
         body.addView(notif, pillRowParams())
         body.addView(notifDisabled, pillRowParams())
         refreshNotificationAvailability()
-        addPillRow(body, R.drawable.ic_stream_alarm, "Alarm", AudioManager.STREAM_ALARM)
+        addPillRow(body, R.drawable.ic_stream_alarm, strings.streamAlarm, AudioManager.STREAM_ALARM)
 
         // "App sliders first" puts the per-app box at the head of the slider rows: index 0 of the
         // folded [body] while a call leads the sheet, else just under the "Audio will play on"

@@ -53,6 +53,9 @@ object SpanishStrings : Strings() {
     override fun volumeStepDown(channel: String) = "Bajar $channel un paso"
     override fun volumeStepUp(channel: String) = "Subir $channel un paso"
 
+    override fun settingStepDown(setting: String) = "Reducir $setting"
+    override fun settingStepUp(setting: String) = "Aumentar $setting"
+
     override val streamMedia get() = "Multimedia"
     override val streamCall get() = "Llamada"
     override val streamRing get() = "Timbre"
@@ -133,6 +136,23 @@ object SpanishStrings : Strings() {
         "Se concedió el root, pero el asistente con privilegios nunca respondió."
     override val rootUseShizukuInstead get() = "Usar Shizuku en su lugar"
 
+    override val bankingFixTitle get() = "¿Tu app del banco detecta Volume++?"
+    override val bankingFixBody get() =
+        "Como Volume++ se instaló desde GitHub, algunas apps bancarias indican que procede de una " +
+            "\"tienda de apps no oficial\". Volume++ puede volver a registrarse como instalada " +
+            "desde Play Store para solucionarlo: se conservan tus ajustes y no cambia ninguna función."
+    override val bankingFixAction get() = "Solucionar"
+    override val bankingFixConfirmTitle get() = "Solucionar la detección de las apps bancarias"
+    override val bankingFixConfirmBody get() =
+        "Volume++ se reinstalará sobre sí mismo para actualizar su origen de instalación. Se " +
+            "cerrará y se volverá a abrir una vez; es normal y no se pierde nada. Tendrás que " +
+            "repetirlo después de cada actualización desde GitHub."
+    override val bankingFixConfirmButton get() = "Reinstalar"
+    override val bankingFixDone get() = "Listo: Volume++ ahora figura como instalada desde Play Store."
+    override val bankingFixFailed get() =
+        "No se pudo actualizar el origen de instalación. Comprueba que el asistente con privilegios " +
+            "esté conectado e inténtalo de nuevo."
+
     // ── pestaña Panel ───────────────────────────────────────────────────────────────────────────
 
     override val overlayTitle get() = "Panel"
@@ -181,6 +201,33 @@ object SpanishStrings : Strings() {
     override val overlayLiveCaptionDetail get() =
         "Añade al panel un botón de Subtítulos automáticos, como en los Pixel. Activarlos y " +
             "desactivarlos requiere Shizuku o root; sin ellos, el botón abre sus ajustes."
+
+    override val overlayMediaBoost get() = "Amplificador de volumen multimedia"
+    override fun overlayMediaBoostDetail(maxPercent: Int) =
+        "Con el volumen al 100%, pulsa dos veces la tecla de subir volumen para subir aún más, " +
+            "hasta ${percent(maxPercent)}."
+    override val overlayMediaBoostUnavailable get() =
+        "Este dispositivo no permite que Volume++ amplifique el volumen. Shizuku o root pueden " +
+            "hacerlo posible."
+    override fun overlayMediaBoostInfo(gainMillibels: Int) =
+        "El amplificador pide hasta ${boostDecibels(gainMillibels)} dB de ganancia sobre un " +
+            "volumen que ya está al máximo, así que la salida supera aquello para lo que el " +
+            "fabricante ajustó los altavoces.\n\n" +
+            "Espera distorsión en el contenido más fuerte y ten cuidado con los auriculares: " +
+            "escuchar mucho tiempo con el volumen amplificado puede dañar tu audición. La " +
+            "amplificación se quita sola cuando bajas del 100% o cambias la salida de audio."
+    override val overlayMediaBoostLimit get() = "Volumen amplificado máximo"
+    override val overlayMediaBoostLimitInfo get() =
+        "Fija el límite, no el volumen actual. Subirlo no sube el sonido; usa la tecla de subir " +
+            "volumen para aumentar la amplificación. Bajarlo limita al momento una amplificación " +
+            "activa.\n\n" +
+            "Cada 5 puntos porcentuales equivalen a 1,5 dB de ganancia objetivo, no a un porcentaje " +
+            "lineal de amplitud. El aumento real depende del dispositivo y del audio."
+    override val overlayRememberAppVolumes get() = "Recordar el volumen de cada app"
+    override val overlayRememberAppVolumesDetail get() =
+        "Cada app suena al nivel que le diste la última vez en lugar de empezar al máximo. Devuelve " +
+            "una app al 100% para olvidarlo. Necesita Shizuku o root, como los propios controles " +
+            "por app."
 
     // ── mosaico de Ajustes rápidos ──────────────────────────────────────────────────────────────
 
